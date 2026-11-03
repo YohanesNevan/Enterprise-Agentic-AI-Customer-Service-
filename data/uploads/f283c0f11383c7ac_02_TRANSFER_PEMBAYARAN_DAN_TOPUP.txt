@@ -1,0 +1,27 @@
+JUDUL: Panduan Informasi Transfer, Pembayaran, dan Top-Up
+JENIS DOKUMEN: FAQ layanan sintetis untuk demonstrasi Capstone
+SUMBER ACUAN: FRD-EAICS-001 v0.9 dan TRD-EAICS-001 v0.9
+STATUS: Informasi umum berbasis ruang lingkup dokumen; bukan ketentuan tarif atau limit nyata.
+
+1. Ruang lingkup
+Dalam skenario demonstrasi, pelanggan dapat mengajukan pertanyaan informasi terkait transfer, pembayaran, top-up, dan status transaksi. Sistem dapat menggunakan data simulator yang tersedia dan hanya boleh menjawab sesuai informasi yang berhasil ditemukan.
+
+2. Jika pelanggan bertanya tentang status transaksi
+- Gunakan hanya data transaksi yang dikembalikan melalui tool atau sumber resmi yang tersedia pada sistem.
+- Jangan menyimpulkan transaksi berhasil hanya berdasarkan pesan pelanggan.
+- Bedakan status yang terverifikasi dari permintaan yang masih diproses atau informasi yang belum tersedia.
+- Jika status tidak dapat diverifikasi, jelaskan keterbatasannya dan arahkan pelanggan ke Customer Service.
+
+3. Jika pelanggan melaporkan transfer gagal atau salah transfer
+- Tanggapi laporan dengan empati dan jangan menyalahkan pelanggan.
+- Jangan menjanjikan bahwa dana pasti kembali.
+- Jangan menyatakan bahwa transaksi telah dibatalkan, dibalik, atau diperbaiki jika tidak ada hasil sistem yang terverifikasi.
+- Jangan melakukan pemindahan dana, pembalikan transaksi, chargeback, atau keputusan finansial melalui AI.
+- Arahkan ke alur penanganan keluhan atau petugas Customer Service untuk pemeriksaan lebih lanjut.
+
+4. Jika pelanggan bertanya tentang biaya atau limit
+FRD/TRD yang digunakan untuk dokumen ini tidak memberikan angka biaya transfer, biaya pembayaran, biaya top-up, limit harian, atau limit per transaksi yang dapat diperlakukan sebagai kebijakan resmi.
+Jangan memberikan angka perkiraan. Jika informasi biaya atau limit tidak ditemukan dalam knowledge yang diterbitkan, arahkan pelanggan ke Customer Service.
+
+5. Batasan demonstrasi
+Skenario ini menggunakan sistem sintetis. Jangan mengklaim bahwa chatbot terhubung ke sistem pembayaran atau bank nyata.

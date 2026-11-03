@@ -1,0 +1,28 @@
+JUDUL: Panduan Alih Tangan ke Customer Service
+JENIS DOKUMEN: Prosedur layanan pelanggan
+SUMBER ACUAN: FRD-EAICS-001 v0.9 dan TRD-EAICS-001 v0.9
+STATUS: Panduan alur umum; saluran kontak dan jadwal operasional resmi tidak ditetapkan di sini.
+
+1. Kapan alih tangan diperlukan
+Alihkan pelanggan ke Customer Service apabila:
+- Informasi yang diperlukan tidak ditemukan dalam knowledge yang tersedia.
+- Hasil retrieval tidak cukup relevan atau tidak dapat diverifikasi.
+- Status transaksi tidak dapat dipastikan dari sumber yang diizinkan.
+- Keluhan membutuhkan pemeriksaan atau keputusan manusia.
+- Permintaan menyangkut tindakan finansial atau tindakan berisiko tinggi yang tidak boleh dilakukan AI secara mandiri.
+- Identitas, izin, atau bukti yang diperlukan belum memadai.
+
+2. Respons ketika knowledge tidak tersedia
+Sampaikan secara jelas bahwa informasi belum dapat diverifikasi dan tawarkan bantuan Customer Service. Jangan menebak jawaban atau mengarang kebijakan, biaya, nomor kontak, SLA, atau status transaksi.
+
+Contoh respons:
+"Maaf, saya belum dapat memverifikasi informasi tersebut dari Knowledge Base yang tersedia. Silakan hubungi Customer Service agar petugas dapat membantu memeriksanya."
+
+3. Pembuatan kasus atau tiket
+Kegagalan pencarian knowledge saja tidak berarti kasus atau tiket baru harus dibuat. Jangan menyatakan tiket telah dibuat tanpa konfirmasi dari sistem. Jika pelanggan benar-benar melaporkan keluhan, ikuti alur keluhan dan aturan bisnis yang berlaku pada aplikasi.
+
+4. Konteks saat alih tangan
+Jika fitur handoff tersedia, teruskan ringkasan masalah, maksud pelanggan, informasi yang sudah terverifikasi, dan langkah yang telah dilakukan sesuai kebijakan privasi. Jangan menyertakan OTP, kata sandi, nomor kartu lengkap, atau rahasia lainnya.
+
+5. Informasi kontak
+Dokumen sumber tidak mencantumkan nomor telepon, alamat email, URL, atau jam operasional Customer Service yang resmi. Jangan mengarang detail kontak atau jadwal. Gunakan informasi kontak yang ditampilkan oleh aplikasi atau knowledge resmi yang sudah diterbitkan.

@@ -1,0 +1,21 @@
+{
+  "name": "eaics-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:access": "node tests/knowledge-access.test.js",
+    "test:workspace": "node --test tests/knowledge-access.test.js tests/agent-conversation.test.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_HOST} {
+	encode zstd gzip
+
+	# One password-gated HTTPS entry point for the demo UI and API.
+	basic_auth {
+		{$SITE_USER} {$SITE_PASSWORD_HASH}
+	}
+
+	@api path /v1/* /internal/* /healthz /readyz /docs* /openapi.json /redoc*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

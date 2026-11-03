@@ -1,0 +1,23 @@
+# EAICS full stack — TRD-EAICS-001 §5 (Postgres/pgvector, Redis, MinIO, observability, ML).
+# Dipakai untuk Docker (`docker compose up --build`) dan profil staging/prod.
+# Untuk run lokal cepat (sqlite, tanpa docker) cukup: pip install -r requirements.txt
+-r requirements.txt
+psycopg[binary]==3.1.*
+redis==5.0.*
+python-multipart==0.0.18
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+pydantic-settings==2.5.*
+structlog==24.*
+opentelemetry-api==1.27.*
+opentelemetry-sdk==1.27.*
+prometheus-client==0.20.*
+boto3==1.34.*
+python-magic-bin==0.4.14; sys_platform=='win32'
+python-magic==0.4.27; sys_platform!='win32'
+scikit-learn==1.5.*
+sentence-transformers==3.0.*
+celery[redis]==5.4.*
+pytest-asyncio==0.24.*
+testcontainers==4.*
+alembic==1.13.*

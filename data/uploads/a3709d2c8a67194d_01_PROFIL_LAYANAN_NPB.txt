@@ -1,0 +1,29 @@
+JUDUL: Profil Layanan — Nusantara Prima Bank (NPB)
+JENIS DOKUMEN: Knowledge Base untuk demonstrasi Capstone
+SUMBER ACUAN: FRD-EAICS-001 v0.9 dan TRD-EAICS-001 v0.9
+STATUS: Data dan skenario sintetis untuk demonstrasi; bukan informasi bank nyata.
+
+1. Tentang layanan
+Nusantara Prima Bank (NPB) adalah tenant rujukan sintetis yang digunakan dalam demonstrasi platform Enterprise Agentic AI Customer Service. Nama, nasabah, rekening, transaksi, percakapan, kasus, dan artikel pengetahuan dalam skenario ini bersifat sintetis.
+
+2. Jenis layanan yang dicakup skenario
+Skenario rujukan mencakup layanan keuangan ritel seperti:
+- Informasi kartu dan rekening.
+- Informasi transfer.
+- Informasi pembayaran dan top-up.
+- Pertanyaan terkait transaksi.
+- Permintaan refund sebagai alur layanan yang disimulasikan.
+- Pelaporan transaksi bermasalah atau keluhan.
+- Permintaan informasi status layanan atau klaim yang disimulasikan.
+
+3. Batasan penting
+Platform ini merupakan MVP akademik dan menggunakan simulator. Sistem ini bukan koneksi nyata ke bank, sistem pembayaran, core banking, atau CRM komersial.
+Jangan menyatakan bahwa transfer uang, refund, chargeback, atau pembalikan transaksi nyata telah dilakukan.
+Untuk tindakan yang berdampak finansial, AI tidak boleh mengeksekusi tindakan tersebut secara mandiri. Jika pelanggan membutuhkan tindakan semacam itu, jelaskan bahwa permintaan harus ditangani melalui proses layanan yang sesuai dan/atau petugas manusia.
+
+4. Informasi yang belum ditentukan
+Dokumen FRD/TRD yang menjadi sumber tidak menetapkan daftar tarif resmi, biaya transfer aktual, limit transaksi pelanggan, suku bunga, nomor kontak resmi, atau kebijakan promosi yang berlaku.
+Jangan mengarang angka, tarif, nomor kontak, atau ketentuan produk tersebut. Jika pelanggan menanyakan detail yang tidak tercantum pada knowledge yang tersedia, arahkan ke Customer Service.
+
+5. Cara menjawab
+Jawab berdasarkan dokumen knowledge yang tersedia. Jelaskan bila skenario merupakan simulasi. Jangan meminta atau menampilkan nomor rekening/kartu lengkap, OTP, kata sandi, atau rahasia autentikasi.
