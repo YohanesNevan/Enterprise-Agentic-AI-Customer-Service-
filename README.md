@@ -1,178 +1,62 @@
-# EAICS — Enterprise Agentic AI Customer Service
+# EAICS — Produk Bersama A+B (FRD/TRD compliant)
 
-EAICS adalah aplikasi layanan pelanggan berbantuan AI untuk data sintetis. Proyek menggunakan backend FastAPI, database PostgreSQL, dan frontend React/Vite. Integrasi seperti LLM, core banking, CRM, notifikasi, dan kanal eksternal dapat berupa stub atau simulator; jangan gunakan data pelanggan nyata atau menganggap semua integrasi aktif.
+Target: TRD §14.5 Minggu 1-5, profil LOCAL. Stack: FastAPI + Postgres/pgvector + Redis + MinIO.
 
-## Isi repository
+## Struktur (ADR-01 monolit modular)
+- `app/core/`: ids (§16.1), audit (§16.7), errors (§16.6), rbac (FRD §4.2), correlation (FR-SEC-005), masking
+- `app/contracts/vocabularies.py`: §16.2 V-1..V-18 frozen
+- `app/modules/`: `cases.py` (FR-CASE), `evidence.py` (FR-EV), `handoff.py` (§16.4), `sla_engine.py` (ADR-12), `escalation.py`, `approvals.py` (RBAC-02 + hash), `qa.py`, `analytics_copilot.py`
+- `app/main.py`: tool B untuk A — `create_crm_ticket`, `create_case`, `evidence_request`, `sla_calculate`, `handoff_request`, `notification_send`
+- `synthetic/run.py`: SD-02 seed deterministik + checksum
+- `tests/test_b_skeleton.py`: 6 uji E2E-11/12 + kontrak
+oke
+## Aturan FRD/TRD yang ditegakkan di kode
+- BR-CASE-09: AI usul HIGH/CRITICAL → `severity_confirmed=null`
+- BR-CASE-05: close ditolak + sebutkan butir kurang
+- BR-EV-01: deskripsi bukti generik → E_VALIDATION
+- BR-HO-01/06: paket tak lengkap tetap jalan + `package_complete=false` + defect audit
+- RBAC-02: self-approval diblokir; BR-ORC-07: hash argumen dicek
+- SLA jam kerja Asia/Jakarta, Jumat 16:30 → Senin (US-SLA-01)
+- Audit append-only + hash-chain, trail per correlation_id (US-SEC-01)
 
-- `app/` — API FastAPI, otorisasi, layanan domain, dan persistence.
-- `web-workspace/` — aplikasi web React/Vite.
-- `tests/` — tes backend dan frontend.
-- `context/` — arsitektur, spesifikasi unit, keputusan, dan status implementasi.
-- `docker-compose.yml` — PostgreSQL dan layanan pendukung; juga menyediakan opsi API dalam container.
+## Jalankan (Windows PowerShell)
 
-## Prasyarat
-
-Untuk cara lokal yang direkomendasikan:
-
-- Docker Desktop dengan Docker Engine berstatus **Running**.
-- Python 3.12 atau lebih baru.
-- Node.js versi LTS dan npm.
-- Git.
-
-Docker menjalankan database, sedangkan cara lokal menjalankan API dengan Python dan UI dengan Node.js. Jika hanya ingin menjalankan API di Docker, lihat bagian [Menjalankan API di Docker](#menjalankan-api-di-docker).
-
-## Menjalankan secara lokal di Windows
-
-Jalankan perintah berikut di PowerShell dari folder root repository:
-
+Profil LOCAL memakai PostgreSQL melalui Docker Compose (TRD §14.5 Minggu 1-5):
 ```powershell
-cd D:\CapstoneProjec_v3
-
-# Buat konfigurasi lokal jika belum ada. Jangan commit file .env.
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-
-# Siapkan environment Python dan dependensi backend.
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+Copy-Item .env.example .env          # sekali saja
 python -m pip install -r requirements.txt
-
-# Pasang dependensi frontend.
-Set-Location web-workspace
-npm install
-Set-Location ..
-
-# Jalankan PostgreSQL. Perintah ini membuat container/volume proyek bila belum ada.
 docker compose up -d postgres
-
-# Jalankan PostgreSQL, API, dan frontend.
+python -m pytest tests/ -v           # 11 uji hijau (E2E-11/12 + kontrak §16)
+python scripts/smoke_e2e.py          # verifikasi 6 aturan FRD/TRD
+python -m uvicorn app.main:app --port 8000
+# atau sekali jalan backend+frontend:
 .\start-local.ps1
 ```
+- OpenAPI: http://localhost:8000/docs — protected API calls require a signed bearer token from the configured trusted issuer. `X-Role`, `X-Actor-Id`, and `X-Assurance` are not credentials. No interactive login/issuer is included in this repository; configure the trusted issuer and signing keys before using protected routes.
+- Frontend workspace (TRD §4.13): `cd web-workspace; npm install; npm run dev` → http://localhost:5173 (proxy `/v1` ke `:8000`).
+- Data sintetis SD-02: `python synthetic/run.py --seed 42` (checksum stabil).
 
-Skrip `start-local.ps1` akan memastikan Docker dan PostgreSQL siap, lalu menjalankan API di port `8000` dan frontend di port `5173`. Skrip mengandalkan dependensi Python dan frontend sudah terpasang.
-
-Buka:
-
-- Frontend: <http://127.0.0.1:5173>
-- Dokumentasi API: <http://127.0.0.1:8000/docs>
-- Status API/database: <http://127.0.0.1:8000/readyz>
-
-Skrip start membuat proses API dan frontend di latar belakang. PID proses ditampilkan di terminal dan log tersedia di `api-local.log`, `api-local-error.log`, `frontend-local.log`, serta `frontend-local-error.log`. Untuk menghentikan proses lokal, hentikan PID yang ditampilkan setelah memastikan PID tersebut memang milik EAICS. PostgreSQL dapat dihentikan dengan:
-
+Profil Docker penuh (Postgres/pgvector + Redis + MinIO + Mailpit, TRD §5):
 ```powershell
-docker compose stop postgres
-```
-
-Perintah tersebut menghentikan container, tetapi tidak menghapus data database.
-
-## Menjalankan API di Docker
-
-Alternatif ini menjalankan PostgreSQL, Redis, MinIO, Mailpit, API, dan simulator CRM melalui Compose. Frontend tetap dijalankan di komputer host, sehingga Node.js/npm tetap diperlukan.
-
-Pastikan `.env` sudah dibuat seperti langkah lokal, lalu:
-
-```powershell
-cd D:\CapstoneProjec_v3
-docker compose up -d --build
-docker compose ps
+pip install -r requirements-full.txt  # bila perlu ML/observability di host
+docker compose up -d --build          # postgres, redis, minio, mailpit + api :8000
 docker compose logs -f api
 ```
+`DATABASE_URL` di `.env` otomatis dipakai. PostgreSQL wajib aktif; aplikasi berhenti dengan pesan koneksi yang jelas bila database tidak tersedia. SQLite hanya dipakai oleh rangkaian tes yang mengatur URL sendiri.
 
-Di terminal PowerShell kedua, jalankan frontend:
+## Deploy demo cloud
+Panduan profil cloud Docker Compose dengan HTTPS, akses demo bersandi, dan database privat: [DEPLOY_CLOUD.md](DEPLOY_CLOUD.md). Profil ini ditujukan untuk data sintetis sesuai FRD/TRD.
 
-```powershell
-cd D:\CapstoneProjec_v3\web-workspace
-npm install
-npm run dev
-```
+Frontend juga dapat dipublikasikan terpisah di Vercel; API dan PostgreSQL tetap harus di-host terpisah agar fitur bekerja. Lihat [web-workspace/VERCEL_DEPLOY.md](web-workspace/VERCEL_DEPLOY.md).
 
-Buka <http://127.0.0.1:5173>. Vite meneruskan request API ke port `8000`.
+## Troubleshooting 404
+- URL yang benar: backend `http://localhost:8000/` (landing info), `http://localhost:8000/docs`, `http://localhost:8000/healthz`;
+  UI workspace `http://localhost:5173/`. The current development UI still needs the planned authenticated client integration before it can call protected API routes.
+- UI menampilkan `404 ...`: pastikan backend `:8000` sudah jalan — proxy Vite (`vite.config.js`) meneruskan `/v1` dan `/internal` ke `:8000`.
+- `npm run dev` langsung exit: gunakan script `dev` bawaan (`vite --port 5173`); flag CLI tak dikenal membuat Vite menolak start.
+- Port dipakai: `netstat -ano | findstr "8000 5173"` lalu hentikan proses lama.
 
-Pilih **satu cara untuk menjalankan API**: `start-local.ps1` atau service `api` di Docker Compose. Jangan jalankan keduanya bersamaan karena sama-sama memakai port `8000`. Untuk menghentikan layanan Compose tanpa menghapus volume:
-
-```powershell
-docker compose down
-```
-
-`docker compose down` mempertahankan volume database. Jangan tambahkan `-v` kecuali memang ingin menghapus data database dan volume terkait.
-
-## Konfigurasi lokal dan login development
-
-- `.env.example` adalah template; `.env` adalah konfigurasi pribadi/mesin lokal dan tidak boleh dimasukkan ke Git.
-- Ganti placeholder `JWT_SIGNING_KEY` dengan nilai acak minimal 32 karakter. Jangan gunakan kunci contoh atau membagikan secret lewat chat, screenshot, issue, atau commit.
-- Provider LLM default adalah `stub`. Gemini hanya digunakan jika dipilih secara eksplisit dan konfigurasi/kredensial provider yang sesuai tersedia.
-- Login development pelanggan dan staf **nonaktif secara default**. Jika dibutuhkan untuk menguji halaman terlindungi, aktifkan hanya di lingkungan lokal `ENVIRONMENT=development`, isi akun development sesuai template, dan aktifkan flag UI terkait di `web-workspace/.env.local` (salin dari `web-workspace/.env.example` terlebih dahulu).
-- Jangan aktifkan login development pada deployment bersama/produksi. Jangan menaruh API key atau password di source code, README, atau konfigurasi yang di-commit.
-- Gunakan data sintetis saja.
-
-Token/role dari browser bukan pengganti autentikasi backend. Endpoint terlindungi membutuhkan bearer token yang valid; memilih role di UI tidak memberikan hak akses.
-
-## Menjalankan verifikasi
-
-Backend, dari root dengan virtual environment aktif:
-
-```powershell
-python -m pytest -q -p no:cacheprovider
-```
-
-Frontend:
-
-```powershell
-Set-Location web-workspace
-npm run test:workspace
-npm run build
-```
-
-Laporkan hasil perintah yang benar-benar dijalankan; keberhasilan build tidak membuktikan alur browser atau integrasi eksternal telah diuji.
-
-## Troubleshooting
-
-### Port PostgreSQL `5432` sudah digunakan
-
-PostgreSQL EAICS memetakan port host `5432`. Periksa container yang menggunakannya:
-
-```powershell
-docker ps --filter "publish=5432" --format "table {{.Names}}\t{{.Ports}}"
-```
-
-Jika container dari proyek lain sedang memakai port tersebut, jangan hentikan atau hapus sebelum memastikan proyek itu tidak sedang digunakan. Dua database tidak dapat menerbitkan port host `5432` secara bersamaan. Pilih menghentikan sementara database proyek lain atau mengatur port berbeda secara konsisten pada Compose dan `DATABASE_URL`.
-
-### API gagal terhubung ke PostgreSQL
-
-Periksa status dan log database:
-
-```powershell
-docker compose ps postgres
-docker compose logs --tail 100 postgres
-Test-NetConnection 127.0.0.1 -Port 5432
-```
-
-Untuk cara lokal, `DATABASE_URL` di `.env` harus menunjuk ke database `eaics` pada `localhost:5432` dengan kredensial yang sesuai dengan service `postgres` di `docker-compose.yml`. Jangan membagikan nilai `.env`; hapus atau sensor informasi kredensial sebelum membagikan log.
-
-Detail startup API dapat dilihat di `api-local-error.log`. Jika API berjalan di Docker, gunakan `docker compose logs --tail 100 api`.
-
-### Port API `8000` atau frontend `5173` sudah digunakan
-
-Tutup proses EAICS lama yang memakai port tersebut atau hentikan service terkait sebelum menjalankan ulang. Jangan menghentikan PID yang belum dikenali.
-
-### Docker CLI tidak dapat terhubung ke Engine
-
-Buka Docker Desktop dan tunggu sampai status **Engine running**, lalu cek:
-
-```powershell
-docker info
-```
-
-## Data dan batasan keselamatan
-
-Compose menyimpan data PostgreSQL pada volume `pgdata` dan data MinIO pada `miniodata`. `docker compose down` menghentikan/menghapus container jaringan Compose tanpa menghapus volume. `docker compose down -v` menghapus volume juga dan dapat menghilangkan data lokal.
-
-Gunakan layanan dan credential Compose hanya untuk development lokal dengan data sintetis. Sebelum deployment, tinjau konfigurasi keamanan, identitas, penyimpanan, migrasi database, dan provider eksternal.
-
-## Dokumentasi tambahan
-
-- [Rencana build dan unit implementasi](context/specs/00-build-plan.md)
-- [Progress tracker](context/progress-tracker.md)
-- [Traceability kebutuhan](context/requirements-traceability.md)
-- [Panduan deployment cloud](DEPLOY_CLOUD.md)
-- [Panduan deploy frontend ke Vercel](web-workspace/VERCEL_DEPLOY.md)
+## Next (sesuai TRD §14.5)
+- Minggu 6-7: antrean prioritas + workspace React + OTP/Auth read-model (butuh A)
+- Minggu 8-9: SLA tick Beat + outbox CRM worker + approval UI
+- Minggu 11-13: QA sampling penuh + eval + dasbor driver-tree 2 tingkat

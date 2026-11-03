@@ -147,6 +147,80 @@ def register(app):
         return {"access_token": token, "token_type": "Bearer", "expires_in": lifetime,
                 "principal": {"actor_id": actor, "role": role, "tenant_id": tenant}}
 
+    @app.post("/v1/dev-auth/login")
+    async def dev_universal_login(body: dict, request: Request):
+        try:
+            credentials = DevLoginIn.model_validate(body) if hasattr(DevLoginIn, "model_validate") else DevLoginIn.parse_obj(body)
+        except ValidationError as exc:
+            raise AppError("E_VALIDATION", "username and password are required", customer_message_id="AUTH.LOGIN_INVALID") from exc
+
+        client_host = request.client.host if request.client else None
+        if not dev_auth_client_allowed(client_host):
+            raise AppError("E_UNAVAILABLE", "local sign-in is not allowed from this host", customer_message_id="AUTH.DEV_UNAVAILABLE")
+
+        # 1. First check if credentials match an enabled staff account
+        staff_enabled = os.getenv("DEV_STAFF_AUTH_ENABLED", "").lower() == "true"
+        env = os.getenv("ENVIRONMENT", "")
+        if staff_enabled and env.lower() == "development":
+            try:
+                staff_accounts = json.loads(os.getenv("DEV_STAFF_ACCOUNTS", "{}"))
+            except (ValueError, TypeError):
+                staff_accounts = {}
+            if isinstance(staff_accounts, dict) and credentials.username in staff_accounts:
+                st_acc = staff_accounts[credentials.username]
+                if isinstance(st_acc, dict):
+                    actor, tenant, role, pwd = (st_acc.get("actor_id"), st_acc.get("tenant_id"),
+                                                st_acc.get("role"), st_acc.get("password"))
+                    staff_roles = HUMAN_ROLES - {"customer"}
+                    if (isinstance(pwd, str) and len(pwd) >= 20 and
+                            role in staff_roles and actor and tenant and
+                            hmac.compare_digest(credentials.password.encode(), pwd.encode())):
+                        token, lifetime = issue_dev_access_token(actor, tenant, role)
+                        _logger.warning("universal_login_succeeded type=staff role=%s tenant_id=%s environment=%s",
+                                        role, tenant, env.lower())
+                        return {
+                            "access_token": token,
+                            "token_type": "Bearer",
+                            "expires_in": lifetime,
+                            "principal": {"actor_id": actor, "role": role, "tenant_id": tenant}
+                        }
+
+        # 2. Check customer accounts
+        if dev_auth_enabled():
+            try:
+                cust_accounts = json.loads(os.getenv("DEV_CUSTOMER_ACCOUNTS", "{}"))
+            except (ValueError, TypeError):
+                cust_accounts = {}
+            cust_acc = None
+            if isinstance(cust_accounts, dict) and credentials.username in cust_accounts:
+                cust_acc = cust_accounts[credentials.username]
+            elif credentials.username == os.getenv("DEV_CUSTOMER_USERNAME", ""):
+                cust_acc = {
+                    "password": os.getenv("DEV_CUSTOMER_PASSWORD", ""),
+                    "actor_id": os.getenv("DEV_CUSTOMER_ID", ""),
+                    "tenant_id": os.getenv("DEV_TENANT_ID", "")
+                }
+
+            if isinstance(cust_acc, dict):
+                pwd = cust_acc.get("password")
+                actor = cust_acc.get("actor_id")
+                tenant = cust_acc.get("tenant_id")
+                key = os.getenv("JWT_SIGNING_KEY", "")
+                if (isinstance(pwd, str) and len(pwd) >= 20 and len(key) >= 32 and
+                        actor and tenant and len(actor) <= 30 and len(tenant) <= 30 and
+                        hmac.compare_digest(credentials.password.encode(), pwd.encode())):
+                    token, lifetime = issue_dev_access_token(actor, tenant, "customer")
+                    _logger.warning("universal_login_succeeded type=customer tenant_id=%s environment=%s",
+                                    tenant, env.lower())
+                    return {
+                        "access_token": token,
+                        "token_type": "Bearer",
+                        "expires_in": lifetime,
+                        "principal": {"actor_id": actor, "role": "customer", "tenant_id": tenant}
+                    }
+
+        raise AppError("E_UNAUTHORISED", "invalid sign-in credentials", customer_message_id="AUTH.INVALID_CREDENTIALS")
+
     def authorized_session(db, session_id: str, ctx):
         session = db.query(ChannelSessionRow).filter_by(channel_session_id=session_id).first()
         if not session:
@@ -582,16 +656,64 @@ def register(app):
         finally:
             db.close()
 
-    # ---- CRM lookup/update + evidence link (tool milik B yang belum ada) ----
+    # ---- CRM lookup/update/list + evidence link (tool milik B yang belum ada) ----
+    @app.get("/v1/tickets")
+    async def ticket_list(request: Request, conversation_id: str | None = None,
+                          status: str | None = None, limit: int = 50,
+                          ctx=Depends(require_perm("ticket.read"))):
+        _ = request
+        db = SessionLocal()
+        try:
+            from ..core.ids import short_reference
+            q = db.query(BModels.TicketRow).filter_by(tenant_id=ctx["tenant_id"])
+            if ctx["role"] == "customer":
+                q = q.filter_by(customer_id=ctx["actor_id"])
+            if conversation_id:
+                q = q.filter_by(conversation_id=conversation_id)
+            if status:
+                q = q.filter_by(status=status)
+            items = q.order_by(BModels.TicketRow.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    "ticket_id": t.ticket_id,
+                    "customer_reference": short_reference("ticket", t.ticket_id),
+                    "customer_id": t.customer_id,
+                    "conversation_id": t.conversation_id,
+                    "case_id": t.case_id,
+                    "type": t.type,
+                    "sub_type": t.sub_type,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "description": t.description,
+                    "owner_queue": t.owner_queue,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                }
+                for t in items
+            ]
+        finally:
+            db.close()
+
     @app.get("/v1/tickets/{tid}")
     async def ticket_lookup(tid: str, request: Request, ctx=Depends(require_perm("ticket.read"))):
         _ = request
         db = SessionLocal()
         try:
+            from ..core.ids import short_reference
             t = db.query(BModels.TicketRow).filter_by(ticket_id=tid, tenant_id=ctx["tenant_id"]).first()
             if t and ctx["role"] == "customer" and t.customer_id != ctx["actor_id"]: t = None
             if not t: raise AppError("E_NOT_FOUND", "ticket not found", customer_message_id="TICKET.NOT_FOUND")
-            return {"ticket_id": t.ticket_id, "status": t.status, "type": t.type}
+            return {
+                "ticket_id": t.ticket_id,
+                "customer_reference": short_reference("ticket", t.ticket_id),
+                "customer_id": t.customer_id,
+                "conversation_id": t.conversation_id,
+                "case_id": t.case_id,
+                "status": t.status,
+                "type": t.type,
+                "priority": t.priority,
+                "description": t.description,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
         finally:
             db.close()
 
@@ -609,6 +731,41 @@ def register(app):
         finally:
             db.close()
 
+    @app.get("/v1/cases")
+    async def case_list(request: Request, conversation_id: str | None = None,
+                        status: str | None = None, limit: int = 50,
+                        ctx=Depends(require_perm("case.read"))):
+        _ = request
+        db = SessionLocal()
+        try:
+            q = db.query(BModels.CaseRow).filter_by(tenant_id=ctx["tenant_id"])
+            if ctx["role"] == "customer":
+                q = q.filter_by(customer_id=ctx["actor_id"])
+            if conversation_id:
+                q = q.filter_by(origin_conversation_id=conversation_id)
+            if status:
+                q = q.filter_by(status=status)
+            items = q.order_by(BModels.CaseRow.logged_at.desc()).limit(limit).all()
+            return [
+                {
+                    "case_id": c.case_id,
+                    "customer_reference": c.customer_reference,
+                    "customer_id": c.customer_id,
+                    "conversation_id": c.origin_conversation_id,
+                    "category": c.category,
+                    "sub_category": c.sub_category,
+                    "severity_proposed": c.severity_proposed,
+                    "severity_confirmed": c.severity_confirmed,
+                    "status": c.status,
+                    "customer_visible_status": c.customer_visible_status,
+                    "owner_queue": c.owner_queue,
+                    "logged_at": c.logged_at.isoformat() if c.logged_at else None,
+                }
+                for c in items
+            ]
+        finally:
+            db.close()
+
     @app.get("/v1/cases/{cid}")
     async def case_lookup(cid: str, request: Request, ctx=Depends(require_perm("case.read"))):
         _ = request
@@ -617,7 +774,36 @@ def register(app):
             c = db.query(BModels.CaseRow).filter_by(case_id=cid, tenant_id=ctx["tenant_id"]).first()
             if c and ctx["role"] == "customer" and c.customer_id != ctx["actor_id"]: c = None
             if not c: raise AppError("E_NOT_FOUND", "case not found", customer_message_id="CASE.NOT_FOUND")
-            return {"case_id": c.case_id, "status": c.status, "customer_visible_status": c.customer_visible_status}
+            return {
+                "case_id": c.case_id,
+                "customer_reference": c.customer_reference,
+                "customer_id": c.customer_id,
+                "conversation_id": c.origin_conversation_id,
+                "category": c.category,
+                "sub_category": c.sub_category,
+                "status": c.status,
+                "customer_visible_status": c.customer_visible_status,
+                "logged_at": c.logged_at.isoformat() if c.logged_at else None
+            }
+        finally:
+            db.close()
+
+    @app.patch("/v1/cases/{cid}")
+    async def case_update(cid: str, body: dict, request: Request, ctx=Depends(require_perm("case.update"))):
+        db = SessionLocal()
+        try:
+            c = db.query(BModels.CaseRow).filter_by(case_id=cid, tenant_id=ctx["tenant_id"]).first()
+            if not c: raise AppError("E_NOT_FOUND", "case not found", customer_message_id="CASE.NOT_FOUND")
+            if "status" in body:
+                c.status = body["status"]
+                from .cases import INTERNAL_TO_CUSTOMER
+                c.customer_visible_status = INTERNAL_TO_CUSTOMER.get(body["status"], c.customer_visible_status)
+            if "severity_confirmed" in body:
+                c.severity_confirmed = body["severity_confirmed"]
+            db.commit()
+            audit_svc.emit("TNT-TEST", request.state.correlation_id, ctx["actor_type"], ctx["actor_id"],
+                           "case.status_changed", "case", cid, "case-svc")
+            return {"case_id": cid, "status": c.status, "customer_visible_status": c.customer_visible_status}
         finally:
             db.close()
 

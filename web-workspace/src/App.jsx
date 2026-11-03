@@ -1,9 +1,9 @@
 // EAICS Workspace â€” UI layanan pelanggan agentik (Kelompok B, TRD Â§4.13, NFR-08).
 // Semua data live dari backend via proxy Vite (/v1, /internal -> :8000).
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import './app.css'
 import {
-  req, ApiError, getAuthSession, subscribeAuth, devCustomerLogin, devStaffLogin, devCustomerLogout, isDevelopmentAuthEnabled, isDevelopmentStaffAuthEnabled,
+  req, ApiError, getAuthSession, subscribeAuth, devUniversalLogin, devCustomerLogin, devStaffLogin, devCustomerLogout, isDevelopmentAuthEnabled, isDevelopmentStaffAuthEnabled,
   CLOSURE_ITEMS, QA_FIELDS, QA_AUTO_FAIL, QA_FINDING_TYPES, SEVERITIES, REASONS,
 } from './api.js'
 import { KNOWLEDGE_WORKSPACE_ROLES, staffNavigationFor } from './workspace-access.js'
@@ -12,8 +12,9 @@ const CUSTOMER_LINKS = [
   ['/customer/requests', 'Lacak permintaan'], ['/customer/conversations', 'Riwayat percakapan'], ['/customer/account', 'Akun'],
 ]
 const ROUTES = {
-  '/customer/login': { title: 'Masuk ke akun pelanggan', audience: 'public', page: 'customer-login' },
-  '/staff/login': { title: 'Masuk staf', audience: 'public', page: 'staff-login' },
+  '/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
+  '/customer/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
+  '/staff/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
   '/customer/chat': { title: 'Chat layanan pelanggan', audience: 'customer', page: 'customer-chat' },
   '/customer/requests/new': { title: 'Kirim permintaan layanan', audience: 'customer', page: 'customer-request' },
   '/customer/requests': { title: 'Lacak permintaan', audience: 'customer', page: 'customer-track' },
@@ -114,22 +115,22 @@ export default function App() {
   const route = ROUTES[path]
   const role = session?.principal?.role
   const customerRoute = route?.audience === 'customer'
-  const isPublic = path === '/' || path === '/customer/login' || path === '/staff/login'
+  const isPublic = path === '/' || path === '/customer/login' || path === '/staff/login' || path === '/login'
   const permitted = customerRoute ? role === 'customer' : Array.isArray(route?.audience) ? route.audience.includes(role) : route?.audience === role
   const needsAuth = !isPublic && !session
   const navItems = isPublic || (customerRoute && (!session || role === 'customer')) ? CUSTOMER_LINKS : staffNavigationFor(role)
   const title = route?.title || (isPublic ? 'Layanan pelanggan' : 'Halaman tidak ditemukan')
-  const Page = route?.page === 'customer-login' ? CustomerLogin : route?.page === 'staff-login' ? StaffLogin : route?.page === 'customer-chat' ? CustomerChat : route?.page === 'customer-history' ? CustomerHistory : route?.page === 'customer-request' ? CustomerRequest : route?.page === 'customer-track' ? CustomerTrack : route?.page === 'customer-account' ? CustomerAccount : route?.page === 'dash' ? Dash : route?.page === 'queue' ? Queue : route?.page === 'conv' ? Conv : route?.page === 'cases' ? Cases : route?.page === 'approvals' ? Approvals : route?.page === 'qa' ? QA : route?.page === 'analytics' ? Analytics : route?.page === 'sla' ? SLA : route?.page === 'audit' ? Audit : route?.page === 'knowledge' ? KnowledgeManager : null
+  const Page = (route?.page === 'customer-login' || route?.page === 'staff-login' || route?.page === 'login') ? UniversalLogin : route?.page === 'customer-chat' ? CustomerChat : route?.page === 'customer-history' ? CustomerHistory : route?.page === 'customer-request' ? CustomerRequest : route?.page === 'customer-track' ? CustomerTrack : route?.page === 'customer-account' ? CustomerAccount : route?.page === 'dash' ? Dash : route?.page === 'queue' ? Queue : route?.page === 'conv' ? Conv : route?.page === 'cases' ? Cases : route?.page === 'approvals' ? Approvals : route?.page === 'qa' ? QA : route?.page === 'analytics' ? Analytics : route?.page === 'sla' ? SLA : route?.page === 'audit' ? Audit : route?.page === 'knowledge' ? KnowledgeManager : null
   const customerShell = isPublic || customerRoute
   let content
   if (path === '/') content = <CustomerHome />
-  else if (path === '/customer/login') content = <CustomerLogin />
-  else if (path === '/staff/login') content = <StaffLogin />
+  else if (path === '/customer/login' || path === '/staff/login' || path === '/login') content = <UniversalLogin />
+
   else if (!route) content = <StatePanel title="Halaman tidak ditemukan">Alamat ini tidak tersedia.</StatePanel>
   else if (session === undefined) content = <StatePanel title="Memeriksa sesi">Sesi autentikasi sedang diperiksa.</StatePanel>
   else if (authError) content = <StatePanel title="Sesi tidak dapat diperiksa">Penyedia identitas tidak dapat memeriksa sesi ini. Muat ulang atau hubungi administrator.</StatePanel>
   else if (needsAuth) {
-    const loginPath = customerRoute ? '/customer/login' : '/staff/login'
+    const loginPath = '/customer/login'
     content = path === '/customer/chat' ? <CustomerChatPreview /> : <StatePanel title="Autentikasi diperlukan">{customerRoute ? 'Akses memerlukan sesi pelanggan terverifikasi.' : 'Akses memerlukan sesi staf terverifikasi.'} <a href={loginPath} onClick={(e) => { e.preventDefault(); navigate(loginPath) }}>Masuk</a> untuk melanjutkan.</StatePanel>
   }
   else if (!permitted) content = <StatePanel title="Akses tidak diizinkan">Sesi ini tidak memiliki akses ke halaman tersebut.</StatePanel>
@@ -149,17 +150,18 @@ export default function App() {
         {navItems.map(([href, label], index) => <a className="nav-item" key={href} href={href} title={label} aria-current={path === href ? 'page' : undefined} onClick={(e) => { e.preventDefault(); navigate(href) }}>
           <span className="nav-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><span className="nav-copy">{label}</span><span className="nav-arrow" aria-hidden="true">↗</span>
         </a>)}
-        {customerShell && !session && <a className="nav-item nav-login" href="/customer/login" title="Masuk" aria-current={path === '/customer/login' ? 'page' : undefined} onClick={(e) => { e.preventDefault(); navigate('/customer/login') }}>
+        {customerShell && !session && <a className="nav-item nav-login" href="/customer/login" title="Masuk" aria-current={path === '/customer/login' || path === '/login' ? 'page' : undefined} onClick={(e) => { e.preventDefault(); navigate('/customer/login') }}>
           <span className="nav-index" aria-hidden="true">↳</span><span className="nav-copy">Masuk akun</span><span className="nav-arrow" aria-hidden="true">↗</span>
         </a>}
-        {isPublic && <a className="nav-item nav-login" href="/staff/login" title="Ruang kerja staf" aria-current={path === '/staff/login' ? 'page' : undefined} onClick={(e) => { e.preventDefault(); navigate('/staff/login') }}>
-          <span className="nav-index" aria-hidden="true">↳</span><span className="nav-copy">Ruang kerja staf</span><span className="nav-arrow" aria-hidden="true">↗</span>
-        </a>}
+
+
+
+
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-account-mark" aria-hidden="true">{customerShell ? 'C' : (role || 'S').slice(0, 1).toUpperCase()}</div>
         <div className="sidebar-account-copy"><strong>{session?.principal?.role === 'customer' ? 'Akun pelanggan' : role ? role.replaceAll('_', ' ') : customerShell ? 'Layanan terbuka' : 'Sesi staf'}</strong><span>{session ? 'Sesi terverifikasi' : 'Akses mengikuti autentikasi'}</span></div>
-        {customerShell && session?.principal?.role === 'customer' && <button className="logout-button" title="Keluar" aria-label="Keluar" onClick={() => { devCustomerLogout(); navigate('/') }}>↗</button>}
+        {session && <button className="logout-button" title="Keluar" aria-label="Keluar" onClick={() => { devCustomerLogout(); navigate('/') }}>↗</button>}
       </div>
     </aside>
     <div className="product-mainframe">
@@ -210,43 +212,64 @@ function CustomerHome() {
   </div>
 }
 
-function StaffLogin() {
-  const [username, setUsername] = useState(''); const [password, setPassword] = useState('')
-  const [error, setError] = useState(null); const [loading, setLoading] = useState(false)
+function UniversalLogin() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
   const submit = async (event) => {
-    event.preventDefault(); setError(null); setLoading(true)
+    event.preventDefault()
+    setError(null)
+    setLoading(true)
     try {
-      const principal = await devStaffLogin(username, password)
-      const destination = { cs_agent: '/agent/queue', supervisor: '/supervisor', complaint_officer: '/complaints', knowledge_manager: '/knowledge', qa_analyst: '/qa', management: '/management', admin: '/admin' }[principal.role]
-      if (!destination) throw new ApiError(403, 'FORBIDDEN', 'Akun staf tidak memiliki ruang kerja yang tersedia.')
-      navigate(destination)
-    } catch (err) { setError(err) } finally { setLoading(false) }
+      const principal = await devUniversalLogin(username, password)
+      const role = principal?.role
+      if (role === 'customer') {
+        navigate('/customer/chat')
+      } else {
+        const destination = {
+          cs_agent: '/agent/queue',
+          supervisor: '/supervisor',
+          complaint_officer: '/complaints',
+          knowledge_manager: '/knowledge',
+          qa_analyst: '/qa',
+          management: '/management',
+          admin: '/admin'
+        }[role] || '/agent/queue'
+        navigate(destination)
+      }
+    } catch (err) {
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
   }
-  return <section className="customer-auth"><p className="eyebrow"><span className="eyebrow-rule" />AKSES INTERNAL</p><h2>Ruang kerja staf</h2><p className="auth-intro">Masuk menggunakan akun yang dikelola oleh lingkungan layanan Anda.</p>
-    {!isDevelopmentStaffAuthEnabled ? <p className="alert info">Autentikasi staf belum terhubung. Gunakan penyedia identitas organisasi saat tersedia.</p> : <form className="form" onSubmit={submit}>
-      <p>Login lokal hanya tersedia di lingkungan pengembangan dan untuk akun yang dikonfigurasi di server.</p>
-      <label>Nama pengguna<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required /></label>
-      <label>Kata sandi<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-      {error && <p className="alert err" role="alert">{error.message}</p>}
-      <button className="btn primary" disabled={loading}>{loading ? 'Memeriksa…' : 'Masuk'}</button>
-    </form>}
+  return <section className="customer-auth">
+    <p className="eyebrow"><span className="eyebrow-rule" />PORTAL LAYANAN</p>
+    <h2>Masuk ke Akun Anda</h2>
+    <p className="auth-intro">Silakan masuk menggunakan nama pengguna dan kata sandi yang telah terdaftar.</p>
+    {!isDevelopmentAuthEnabled && !isDevelopmentStaffAuthEnabled ? (
+      <p className="alert info">Autentikasi belum diaktifkan di server pengembangan.</p>
+    ) : (
+      <form className="form" onSubmit={submit}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn secondary" style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem', cursor: 'pointer' }} onClick={() => { setUsername('customer_dev'); setPassword('M8GvyVkrEF5wJZUCg47ylIJHeulmVA6sK0sc') }}>
+            Autofill Nasabah (customer_dev)
+          </button>
+          <button type="button" className="btn secondary" style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem', cursor: 'pointer' }} onClick={() => { setUsername('kb.staff'); setPassword('L5Tz88EhNmxZsRshdqsI0DrMKipGf9dw') }}>
+            Autofill Staf CS (kb.staff)
+          </button>
+        </div>
+        <label>Nama pengguna<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required /></label>
+        <label>Kata sandi<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+        {error && <p className="alert err" role="alert">{error.message || 'Nama pengguna atau kata sandi tidak valid.'}</p>}
+        <button className="btn primary" disabled={loading}>{loading ? 'Memeriksa…' : 'Masuk'}</button>
+      </form>
+    )}
   </section>
 }
-
-function CustomerLogin() {
-  const [username, setUsername] = useState(''); const [password, setPassword] = useState('')
-  const [error, setError] = useState(null); const [loading, setLoading] = useState(false)
-  const submit = async (event) => { event.preventDefault(); setError(null); setLoading(true); try { await devCustomerLogin(username, password); navigate('/customer/chat') } catch (err) { setError(err) } finally { setLoading(false) } }
-  return <section className="customer-auth"><p className="eyebrow"><span className="eyebrow-rule" />AKUN PELANGGAN</p><h2>Selamat datang kembali.</h2><p className="auth-intro">Masuk untuk melihat percakapan dan permintaan yang terkait dengan akun Anda.</p>
-    {!isDevelopmentAuthEnabled ? <p className="alert info">Login lokal belum diaktifkan. Minta pengelola menyiapkan autentikasi pengembangan.</p> : <form className="form" onSubmit={submit}>
-      <p>Login lokal khusus pengembangan. Gunakan akun yang dikonfigurasi pengelola backend.</p>
-      <label>Nama pengguna<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required /></label>
-      <label>Kata sandi<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-      {error && <p className="alert err" role="alert">{error.message}</p>}
-      <button className="btn primary" disabled={loading}>{loading ? 'Memeriksa…' : 'Masuk'}</button>
-    </form>}
-  </section>
-}
+const CustomerLogin = UniversalLogin
+const StaffLogin = UniversalLogin
 
 function CustomerChatPreview() {
   return <section className="customer-chat customer-chat-preview" aria-labelledby="chat-preview-title">
@@ -272,14 +295,21 @@ function CustomerChat() {
   const [messages, setMessages] = useState([]); const [error, setError] = useState(null); const [notice, setNotice] = useState(null); const [retryInfo, setRetryInfo] = useState(null)
   const [loading, setLoading] = useState(false); const [sending, setSending] = useState(false)
   const submitLock = useRef(false)
-  const transcriptRef = useRef(null)
   const load = useCallback(async (id) => { setLoading(true); setError(null); try { let cursor = null; const all = []; do { const suffix = cursor ? `?limit=100&cursor=${encodeURIComponent(cursor)}` : '?limit=100'; const data = await req(`/v1/conversations/${encodeURIComponent(id)}/read-model${suffix}`); all.push(...(data.messages || [])); cursor = data.next_cursor } while (cursor); setConversationId(id); setMessages(all) } catch (err) { setError(err) } finally { setLoading(false) } }, [])
   useEffect(() => { const initialId = new URLSearchParams(window.location.search).get('conversation_id'); if (initialId) load(initialId) }, [load])
-  useLayoutEffect(() => {
-    if (!loading && messages.length && transcriptRef.current) {
-      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight
-    }
-  }, [loading, messages])
+  useEffect(() => {
+    if (!conversationId) return
+    const timer = setInterval(() => {
+      req(`/v1/conversations/${encodeURIComponent(conversationId)}/read-model?limit=100`)
+        .then((data) => {
+          if (data && data.messages && data.messages.length > 0) {
+            setMessages(data.messages)
+          }
+        })
+        .catch(() => {})
+    }, 3500)
+    return () => clearInterval(timer)
+  }, [conversationId])
   const send = async (event) => {
     event.preventDefault(); const content = text.trim(); if (!content || submitLock.current) return
     submitLock.current = true
@@ -300,7 +330,7 @@ function CustomerChat() {
     <div className="chat-topline"><div><p className="eyebrow"><span className="eyebrow-rule" />RUANG PERCAKAPAN</p><p className="chat-description">Pesan Anda diproses oleh layanan EAICS dan disimpan pada akun setelah dikirim.</p></div>{conversationId && <p className="conversation-ref"><span>REFERENSI</span><strong>{conversationId}</strong></p>}</div>
     {notice && <div className="alert info chat-notice" role="status"><span>{notice}</span><a href="/customer/conversations" onClick={(e) => { e.preventDefault(); navigate('/customer/conversations') }}>Buka riwayat percakapan ↗</a></div>}
     {error && <div className="talkback" role="alert"><span className="talkback-mark" aria-hidden="true">!</span><div><strong>Pesan belum berhasil diproses.</strong><p>{error.message}{error.status === 401 ? <> <a href="/customer/login" onClick={(e) => { e.preventDefault(); navigate('/customer/login') }}>Masuk kembali</a> untuk melanjutkan.</> : error.status === 403 ? ' Hubungi pengelola layanan jika menurut Anda akses ini seharusnya tersedia.' : ' Pesan Anda tetap berada di kolom; pengiriman ulang memakai kunci idempotensi yang sama.'}</p></div></div>}
-    <div ref={transcriptRef} className="customer-transcript" aria-live="polite" aria-busy={loading}>
+    <div className="customer-transcript" aria-live="polite" aria-busy={loading}>
       {loading ? <div className="transcript-skeleton" role="status" aria-label="Memuat percakapan"><span /><span /><span /></div> : messages.length ? messages.map((m) => <article className={`customer-message ${m.direction === 'INBOUND' ? 'from-customer' : 'from-service'}`} key={m.message_id || m.sequence_no}>
         <div className="message-byline"><span className="message-avatar" aria-hidden="true">{m.direction === 'INBOUND' ? 'A' : m.author_type === 'AI_AGENT' ? 'E' : 'P'}</span><span><strong>{m.direction === 'INBOUND' ? 'Anda' : m.author_type === 'AI_AGENT' ? 'Asisten layanan' : 'Petugas'}</strong><small>{m.occurred_at ? new Date(m.occurred_at).toLocaleString() : ''}</small></span></div>
         <p>{m.content}</p>
@@ -364,26 +394,102 @@ function CustomerRequest() {
 }
 
 function CustomerTrack() {
-  const [items, setItems] = useState([]); const [nextCursor, setNextCursor] = useState(null); const [error, setError] = useState(null); const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState([])
+  const [tickets, setTickets] = useState([])
+  const [nextCursor, setNextCursor] = useState(null)
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+
   const load = useCallback(async (cursor = null, append = false) => {
     setLoading(true); setError(null)
     try {
       const suffix = cursor ? `?limit=20&cursor=${encodeURIComponent(cursor)}` : '?limit=20'
-      const result = await req(`/v1/customer/conversations${suffix}`)
-      setItems((current) => append ? [...current, ...(result.items || [])] : result.items || [])
-      setNextCursor(result.next_cursor || null)
+      const [convRes, tktRes] = await Promise.all([
+        req(`/v1/customer/conversations${suffix}`).catch(() => ({ items: [] })),
+        req('/v1/tickets').catch(() => [])
+      ])
+      setItems((current) => append ? [...current, ...(convRes.items || [])] : convRes.items || [])
+      setNextCursor(convRes.next_cursor || null)
+      if (!append) {
+        setTickets(Array.isArray(tktRes) ? tktRes : [])
+      }
     } catch (err) { setError(err) } finally { setLoading(false) }
   }, [])
+
   useEffect(() => { load() }, [load])
+
   return <section className="customer-work-page customer-track-page">
-    <div className="customer-page-intro customer-track-intro"><div><p className="eyebrow"><span className="eyebrow-rule" />AKTIVITAS LAYANAN</p><h2>Permintaan yang Anda kirim.</h2><p>Daftar ini menampilkan percakapan layanan dan pertanyaan yang tersimpan pada akun Anda.</p></div><div className="row"><button className="btn sm" type="button" onClick={() => load()}>Muat ulang</button><a className="btn primary" href="/customer/requests/new" onClick={(event) => { event.preventDefault(); navigate('/customer/requests/new') }}>Kirim permintaan</a></div></div>
+    <div className="customer-page-intro customer-track-intro">
+      <div>
+        <p className="eyebrow"><span className="eyebrow-rule" />AKTIVITAS LAYANAN</p>
+        <h2>Permintaan & Pengaduan Anda.</h2>
+        <p>Pantau tiket pengaduan aktif dan riwayat percakapan layanan yang tersimpan pada akun Anda.</p>
+      </div>
+      <div className="row">
+        <button className="btn sm" type="button" onClick={() => load()}>Muat ulang</button>
+        <a className="btn primary" href="/customer/requests/new" onClick={(event) => { event.preventDefault(); navigate('/customer/requests/new') }}>Kirim permintaan</a>
+      </div>
+    </div>
     {error && <p className="alert err" role="alert">{error.message}</p>}
-    {loading && !items.length ? <Empty text="Memuat permintaan..." /> : !items.length ? <div className="customer-empty-state"><h3>Belum ada percakapan layanan.</h3><p>Kirim pesan layanan untuk memulai.</p><a className="btn primary" href="/customer/requests/new" onClick={(event) => { event.preventDefault(); navigate('/customer/requests/new') }}>Kirim permintaan</a></div> : <ul className="customer-request-list">{items.map((item) => <li key={item.conversation_id}>
-      <div><span className="customer-request-state">{customerConversationState(item.status)}</span><h3>Percakapan layanan</h3><p>{item.conversation_id}</p><time dateTime={item.last_activity_at}>Aktivitas terakhir {new Date(item.last_activity_at).toLocaleString()}</time></div>
-      <a className="btn sm" href={`/customer/chat?conversation_id=${encodeURIComponent(item.conversation_id)}`} onClick={(event) => { event.preventDefault(); navigate(`/customer/chat?conversation_id=${encodeURIComponent(item.conversation_id)}`) }}>Buka percakapan</a>
-    </li>)}</ul>}
+
+    {/* Section Tiket Pengaduan */}
+    {tickets.length > 0 && (
+      <div style={{ marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '0.5rem' }}>Tiket Pengaduan & Sengketa ({tickets.length})</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>Tiket investigasi resmi yang diterbitkan untuk menangani laporan sengketa transaksi atau pengaduan Anda.</p>
+        <ul className="customer-request-list">
+          {tickets.map((t) => (
+            <li key={t.ticket_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+              <div>
+                <span className="customer-request-state" style={{ background: t.status === 'OPEN' ? '#e0f2fe' : '#dcfce7', color: t.status === 'OPEN' ? '#0369a1' : '#15803d' }}>
+                  {t.status === 'OPEN' ? 'Sedang Diproses' : t.status === 'RESOLVED' ? 'Selesai' : t.status}
+                </span>
+                <h4 style={{ margin: '0.35rem 0', fontWeight: 600, fontSize: '1rem' }}>{t.customer_reference || t.ticket_id} &bull; {t.type}</h4>
+                <p style={{ margin: '0.2rem 0', color: 'var(--fg)', fontSize: '0.9rem' }}>{t.description}</p>
+                <time style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                  Prioritas: {t.priority} &bull; Dibuat: {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
+                </time>
+              </div>
+              {t.conversation_id && (
+                <a className="btn sm" href={`/customer/chat?conversation_id=${encodeURIComponent(t.conversation_id)}`} onClick={(event) => { event.preventDefault(); navigate(`/customer/chat?conversation_id=${encodeURIComponent(t.conversation_id)}`) }}>
+                  Buka percakapan
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {/* Section Riwayat Percakapan */}
+    <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '0.5rem' }}>Percakapan Layanan ({items.length})</h3>
+    {loading && !items.length ? (
+      <Empty text="Memuat percakapan..." />
+    ) : !items.length ? (
+      <div className="customer-empty-state">
+        <h3>Belum ada percakapan layanan.</h3>
+        <p>Kirim pesan layanan untuk memulai.</p>
+        <a className="btn primary" href="/customer/requests/new" onClick={(event) => { event.preventDefault(); navigate('/customer/requests/new') }}>Kirim permintaan</a>
+      </div>
+    ) : (
+      <ul className="customer-request-list">
+        {items.map((item) => (
+          <li key={item.conversation_id}>
+            <div>
+              <span className="customer-request-state">{customerConversationState(item.status)}</span>
+              <h3>Percakapan layanan</h3>
+              <p>{item.conversation_id}</p>
+              <time dateTime={item.last_activity_at}>Aktivitas terakhir {new Date(item.last_activity_at).toLocaleString('id-ID')}</time>
+            </div>
+            <a className="btn sm" href={`/customer/chat?conversation_id=${encodeURIComponent(item.conversation_id)}`} onClick={(event) => { event.preventDefault(); navigate(`/customer/chat?conversation_id=${encodeURIComponent(item.conversation_id)}`) }}>
+              Buka percakapan
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
     {nextCursor && <button className="btn" type="button" disabled={loading} onClick={() => load(nextCursor, true)}>{loading ? 'Memuat...' : 'Muat permintaan sebelumnya'}</button>}
-    <p className="customer-scope-note">Status ini adalah status percakapan. Status kasus atau tiket hanya tersedia setelah alur kasus terhubung.</p>
+    <p className="customer-scope-note">Tiket investigasi dan percakapan tersinkronisasi secara otomatis dengan pusat operasional EAICS.</p>
   </section>
 }
 
@@ -493,7 +599,8 @@ function Queue({ role }) {
     setE(null)
     try {
       await req(`/v1/workspace/handoffs/${it.handoff_id}/accept`, { method: 'POST', role, body: {} })
-      setSel(null); load()
+      setSel(null)
+      navigate(`/agent/conversations?cid=${encodeURIComponent(it.conversation_id)}`)
     } catch (err) { setE(err) }
   }
   const transfer = async () => {
@@ -580,19 +687,26 @@ function Queue({ role }) {
 
 /* ---------- Percakapan ---------- */
 function Conv({ role, session }) {
-  const [cid, setCid] = useState('CNV-DEMO-1')
+  const [cid, setCid] = useState(() => new URLSearchParams(window.location.search).get('cid') || 'CNV-DEMO-1')
   const [d, setD] = useState(null)
   const [e, setE] = useState(null)
   const [sug, setSug] = useState(null)
   const [loading, setLoading] = useState(false)
   const open = async (conversationId = cid, keepCurrent = false) => {
-    const target = conversationId.trim()
+    const target = (conversationId || cid || '').trim()
     if (!target) { setE(new Error('Masukkan ID percakapan terlebih dahulu.')); return }
     setE(null); if (!keepCurrent) setD(null); setSug(null); setLoading(true)
     try { setD(await req(`/v1/workspace/conversations/${encodeURIComponent(target)}`)) }
     catch (err) { setE(err) }
     finally { setLoading(false) }
   }
+  useEffect(() => {
+    const targetCid = new URLSearchParams(window.location.search).get('cid')
+    if (targetCid) {
+      setCid(targetCid)
+      open(targetCid)
+    }
+  }, [])
   const suggest = async () => {
     setE(null)
     try { setSug(await req('/v1/copilot/suggest', { method: 'POST', body: { conversation_id: cid } })) }
@@ -730,13 +844,61 @@ function AgentConversationActions({ d, role, session, onRefresh }) {
 function Cases({ role }) {
   const [e, setE] = useState(null)
   const [out, setOut] = useState(null)
+  const [tickets, setTickets] = useState([])
+  const [casesList, setCasesList] = useState([])
+  const [loadingList, setLoadingList] = useState(false)
+  const [activeTab, setActiveTab] = useState('tickets') // 'tickets' | 'cases' | 'manage'
   const [ct, setCt, resetCt] = useForm({ conversation_id: 'CNV-DEMO-1', type: 'GENERAL', priority: 'NORMAL', description: 'Dana belum masuk ke rekening tujuan' })
   const [cc, setCc, resetCc] = useForm({ conversation_id: 'CNV-DEMO-1', category: 'TRANSACTION_DISPUTE', severity_proposed: 'HIGH', description: 'Tidak mengenal transaksi Rp1.200.000', vulnerability_flag: false })
   const [cx, setCx] = useForm({ case_id: '', reason: '' })
   const [check, setCheck] = useState({ outcome_recorded: true })
   const [ev, setEv] = useForm({ case_id: '', description: 'Transaction detail showing date, amount and merchant', reason: 'Verifikasi sengketa' })
 
-  const run = async (fn) => { setE(null); setOut(null); try { const r = await fn(); setOut(r) } catch (err) { setE(err) } }
+  const loadLists = useCallback(async () => {
+    setLoadingList(true)
+    try {
+      const [tList, cList] = await Promise.all([
+        req('/v1/tickets', { role }).catch(() => []),
+        req('/v1/cases', { role }).catch(() => [])
+      ])
+      setTickets(Array.isArray(tList) ? tList : [])
+      setCasesList(Array.isArray(cList) ? cList : [])
+    } catch (err) {
+      // ignore
+    } finally {
+      setLoadingList(false)
+    }
+  }, [role])
+
+  useEffect(() => {
+    loadLists()
+  }, [loadLists])
+
+  const run = async (fn) => {
+    setE(null); setOut(null)
+    try {
+      const r = await fn()
+      setOut(r)
+      await loadLists()
+    } catch (err) {
+      setE(err)
+    }
+  }
+
+  const updateTicketStatus = async (tid, newStatus) => {
+    setE(null)
+    try {
+      await req(`/v1/tickets/${encodeURIComponent(tid)}`, {
+        method: 'PATCH',
+        role,
+        body: { status: newStatus }
+      })
+      await loadLists()
+    } catch (err) {
+      setE(err)
+    }
+  }
+
   const mkTicket = () => run(() => req('/v1/tickets', { method: 'POST', role, body: { ...ct } }).then((r) => { resetCt(); return r }))
   const mkCase = () => run(() => req('/v1/cases', { method: 'POST', role, body: { ...cc } }).then((r) => { resetCc(); return r }))
   const close = () => run(() => req(`/v1/cases/${cx.case_id}/close`, { method: 'POST', role, body: { checklist: check } }))
@@ -747,50 +909,221 @@ function Cases({ role }) {
     <>
       <Err e={e} onClose={() => setE(null)} />
       {out && <Card title="Hasil operasi"><Json data={out} /></Card>}
-      <div className="grid g2 mt">
-        <Card title="Buat tiket" sub="Tool B untuk A: create_crm_ticket (I-01).">
-          <div className="form">
-            <label>Percakapan<input value={ct.conversation_id} onChange={setCt('conversation_id')} /></label>
-            <div className="form2">
-              <label>Tipe<input value={ct.type} onChange={setCt('type')} /></label>
-              <label>Prioritas<select value={ct.priority} onChange={setCt('priority')}>{['LOW', 'NORMAL', 'HIGH', 'URGENT'].map((o) => <option key={o}>{o}</option>)}</select></label>
+
+      {/* Tab Switcher & Overview Card */}
+      <Card
+        title="Pusat Tiket & Manajemen Kasus"
+        sub="Kelola tiket investigasi otomatis (AI-generated) dan eskalasi kasus nasabah."
+        wide
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className={`btn sm ${activeTab === 'tickets' ? 'primary' : ''}`}
+              type="button"
+              onClick={() => setActiveTab('tickets')}
+            >
+              Tiket Layanan ({tickets.length})
+            </button>
+            <button
+              className={`btn sm ${activeTab === 'cases' ? 'primary' : ''}`}
+              type="button"
+              onClick={() => setActiveTab('cases')}
+            >
+              Kasus & Sengketa ({casesList.length})
+            </button>
+            <button
+              className={`btn sm ${activeTab === 'manage' ? 'primary' : ''}`}
+              type="button"
+              onClick={() => setActiveTab('manage')}
+            >
+              Form Pembuatan & Penutupan
+            </button>
+          </div>
+          <button className="btn sm" type="button" onClick={() => loadLists()} disabled={loadingList}>
+            {loadingList ? 'Memuat...' : 'Segarkan Data'}
+          </button>
+        </div>
+
+        {activeTab === 'tickets' && (
+          <div>
+            {!tickets.length ? (
+              <Empty text="Belum ada tiket investigasi yang terdaftar di database." />
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--muted)' }}>
+                      <th style={{ padding: '0.5rem' }}>No. Ref / ID</th>
+                      <th style={{ padding: '0.5rem' }}>Nasabah</th>
+                      <th style={{ padding: '0.5rem' }}>Tipe</th>
+                      <th style={{ padding: '0.5rem' }}>Prioritas</th>
+                      <th style={{ padding: '0.5rem' }}>Status</th>
+                      <th style={{ padding: '0.5rem' }}>Deskripsi</th>
+                      <th style={{ padding: '0.5rem' }}>Percakapan</th>
+                      <th style={{ padding: '0.5rem' }}>Waktu</th>
+                      <th style={{ padding: '0.5rem' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tickets.map((t) => (
+                      <tr key={t.ticket_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{t.customer_reference || t.ticket_id}</td>
+                        <td style={{ padding: '0.5rem' }}>{t.customer_id || '-'}</td>
+                        <td style={{ padding: '0.5rem' }}><span className="badge b-blue">{t.type}</span></td>
+                        <td style={{ padding: '0.5rem' }}><span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`}>{t.priority}</span></td>
+                        <td style={{ padding: '0.5rem' }}><StateBadge v={t.status} /></td>
+                        <td style={{ padding: '0.5rem', maxWidth: 280 }}>{t.description}</td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {t.conversation_id ? (
+                            <button
+                              className="btn sm"
+                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                              type="button"
+                              onClick={() => navigate(`/agent/conversations?cid=${encodeURIComponent(t.conversation_id)}`)}
+                            >
+                              {t.conversation_id}
+                            </button>
+                          ) : '-'}
+                        </td>
+                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                          {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {t.status === 'OPEN' && (
+                            <button
+                              className="btn sm primary"
+                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                              type="button"
+                              onClick={() => updateTicketStatus(t.ticket_id, 'RESOLVED')}
+                            >
+                              Selesaikan
+                            </button>
+                          )}
+                          {t.status === 'RESOLVED' && (
+                            <button
+                              className="btn sm"
+                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                              type="button"
+                              onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
+                            >
+                              Tutup
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'cases' && (
+          <div>
+            {!casesList.length ? (
+              <Empty text="Belum ada kasus yang terdaftar." />
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--muted)' }}>
+                      <th style={{ padding: '0.5rem' }}>No. Kasus</th>
+                      <th style={{ padding: '0.5rem' }}>Nasabah</th>
+                      <th style={{ padding: '0.5rem' }}>Kategori</th>
+                      <th style={{ padding: '0.5rem' }}>Severity</th>
+                      <th style={{ padding: '0.5rem' }}>Status</th>
+                      <th style={{ padding: '0.5rem' }}>Status Nasabah</th>
+                      <th style={{ padding: '0.5rem' }}>Antrean</th>
+                      <th style={{ padding: '0.5rem' }}>Waktu Masuk</th>
+                      <th style={{ padding: '0.5rem' }}>Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {casesList.map((c) => (
+                      <tr key={c.case_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{c.customer_reference || c.case_id}</td>
+                        <td style={{ padding: '0.5rem' }}>{c.customer_id || '-'}</td>
+                        <td style={{ padding: '0.5rem' }}><span className="badge b-blue">{c.category}</span></td>
+                        <td style={{ padding: '0.5rem' }}><Sev v={c.severity_confirmed || c.severity_proposed} /></td>
+                        <td style={{ padding: '0.5rem' }}><StateBadge v={c.status} /></td>
+                        <td style={{ padding: '0.5rem' }}><StateBadge v={c.customer_visible_status} /></td>
+                        <td style={{ padding: '0.5rem' }}>{c.owner_queue}</td>
+                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                          {c.logged_at ? new Date(c.logged_at).toLocaleString('id-ID') : '-'}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          <button
+                            className="btn sm"
+                            style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                            type="button"
+                            onClick={() => {
+                              setCx((prev) => ({ ...prev, case_id: c.case_id }))
+                              setEv((prev) => ({ ...prev, case_id: c.case_id }))
+                              setActiveTab('manage')
+                            }}
+                          >
+                            Kelola
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Formulir Pembuatan & Tindakan Manual */}
+      {(activeTab === 'manage' || (!tickets.length && !casesList.length)) && (
+        <div className="grid g2 mt">
+          <Card title="Buat tiket" sub="Tool B untuk A: create_crm_ticket (I-01).">
+            <div className="form">
+              <label>Percakapan<input value={ct.conversation_id} onChange={setCt('conversation_id')} /></label>
+              <div className="form2">
+                <label>Tipe<input value={ct.type} onChange={setCt('type')} /></label>
+                <label>Prioritas<select value={ct.priority} onChange={setCt('priority')}>{['LOW', 'NORMAL', 'HIGH', 'URGENT'].map((o) => <option key={o}>{o}</option>)}</select></label>
+              </div>
+              <label>Deskripsi<textarea value={ct.description} onChange={setCt('description')} rows={2} /></label>
+              <div className="row"><button className="btn primary" onClick={mkTicket}>Buat tiket</button></div>
             </div>
-            <label>Deskripsi<textarea value={ct.description} onChange={setCt('description')} rows={2} /></label>
-            <div className="row"><button className="btn primary" onClick={mkTicket}>Buat tiket</button></div>
-          </div>
-        </Card>
-        <Card title="Buat kasus" sub="BR-CASE-09: AI usul HIGH/CRITICAL â†’ perlu konfirmasi manusia.">
-          <div className="form">
-            <label>Percakapan<input value={cc.conversation_id} onChange={setCc('conversation_id')} /></label>
-            <div className="form2">
-              <label>Kategori<select value={cc.category} onChange={setCc('category')}>{['TRANSACTION_DISPUTE', 'GENERAL', 'COMPLAINT', 'FRAUD', 'ACCOUNT'].map((o) => <option key={o}>{o}</option>)}</select></label>
-              <label>Severity usul<select value={cc.severity_proposed} onChange={setCc('severity_proposed')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
+          </Card>
+          <Card title="Buat kasus" sub="BR-CASE-09: AI usul HIGH/CRITICAL â†’ perlu konfirmasi manusia.">
+            <div className="form">
+              <label>Percakapan<input value={cc.conversation_id} onChange={setCc('conversation_id')} /></label>
+              <div className="form2">
+                <label>Kategori<select value={cc.category} onChange={setCc('category')}>{['TRANSACTION_DISPUTE', 'GENERAL', 'COMPLAINT', 'FRAUD', 'ACCOUNT'].map((o) => <option key={o}>{o}</option>)}</select></label>
+                <label>Severity usul<select value={cc.severity_proposed} onChange={setCc('severity_proposed')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
+              </div>
+              <label>Deskripsi<textarea value={cc.description} onChange={setCc('description')} rows={2} /></label>
+              <label className="check"><input type="checkbox" checked={cc.vulnerability_flag} onChange={setCc('vulnerability_flag')} /> Nasabah rentan</label>
+              <div className="row"><button className="btn primary" onClick={mkCase}>Buat kasus</button></div>
             </div>
-            <label>Deskripsi<textarea value={cc.description} onChange={setCc('description')} rows={2} /></label>
-            <label className="check"><input type="checkbox" checked={cc.vulnerability_flag} onChange={setCc('vulnerability_flag')} /> Nasabah rentan</label>
-            <div className="row"><button className="btn primary" onClick={mkCase}>Buat kasus</button></div>
-          </div>
-        </Card>
-        <Card title="Tutup / buka kembali" sub="BR-CASE-05: penutupan ditolak bila ada butir kurang (peran supervisor).">
-          <div className="form">
-            <label>Case ID<input value={cx.case_id} onChange={setCx('case_id')} placeholder="CAS-â€¦" /></label>
-            {CLOSURE_ITEMS.map(([k, label]) => (
-              <label className="check" key={k}><input type="checkbox" checked={!!check[k]} onChange={(ev) => setCheck({ ...check, [k]: ev.target.checked })} />{label}</label>
-            ))}
-            <div className="row"><button className="btn primary" onClick={close}>Tutup kasus</button></div>
-            <label>Alasan reopen<input value={cx.reason} onChange={setCx('reason')} /></label>
-            <div className="row"><button className="btn" onClick={reopen}>Buka kembali</button></div>
-          </div>
-        </Card>
-        <Card title="Minta bukti" sub="BR-EV-01: deskripsi generik (mis. 'bukti') ditolak E_VALIDATION.">
-          <div className="form">
-            <label>Case ID<input value={ev.case_id} onChange={setEv('case_id')} placeholder="CAS-â€¦" /></label>
-            <label>Deskripsi bukti<input value={ev.description} onChange={setEv('description')} /></label>
-            <label>Alasan<input value={ev.reason} onChange={setEv('reason')} /></label>
-            <div className="row"><button className="btn primary" onClick={evReq}>Kirim permintaan</button></div>
-          </div>
-        </Card>
-      </div>
+          </Card>
+          <Card title="Tutup / buka kembali" sub="BR-CASE-05: penutupan ditolak bila ada butir kurang (peran supervisor).">
+            <div className="form">
+              <label>Case ID<input value={cx.case_id} onChange={setCx('case_id')} placeholder="CAS-â€¦" /></label>
+              {CLOSURE_ITEMS.map(([k, label]) => (
+                <label className="check" key={k}><input type="checkbox" checked={!!check[k]} onChange={(ev) => setCheck({ ...check, [k]: ev.target.checked })} />{label}</label>
+              ))}
+              <div className="row"><button className="btn primary" onClick={close}>Tutup kasus</button></div>
+              <label>Alasan reopen<input value={cx.reason} onChange={setCx('reason')} /></label>
+              <div className="row"><button className="btn" onClick={reopen}>Buka kembali</button></div>
+            </div>
+          </Card>
+          <Card title="Minta bukti" sub="BR-EV-01: deskripsi generik (mis. 'bukti') ditolak E_VALIDATION.">
+            <div className="form">
+              <label>Case ID<input value={ev.case_id} onChange={setEv('case_id')} placeholder="CAS-â€¦" /></label>
+              <label>Deskripsi bukti<input value={ev.description} onChange={setEv('description')} /></label>
+              <label>Alasan<input value={ev.reason} onChange={setEv('reason')} /></label>
+              <div className="row"><button className="btn primary" onClick={evReq}>Kirim permintaan</button></div>
+            </div>
+          </Card>
+        </div>
+      )}
     </>
   )
 }
