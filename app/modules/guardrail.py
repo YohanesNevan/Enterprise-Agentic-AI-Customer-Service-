@@ -32,8 +32,7 @@ def detect_injection(text: str, corr: str, conv: str, source: str = "customer_me
 def groundedness(draft: str, citations: list, tool_results: list) -> dict:
     """Klaim biaya/angka/tanggal harus persis ada di sumber (G-05)."""
     import re
-    raw_nums = re.findall(r"\d[\d.,]*", draft or "")
-    nums = [n.rstrip(".,") for n in raw_nums if n.rstrip(".,")]
+    nums = re.findall(r"\d[\d.,]*", draft or "")
     src = " ".join([(c.get("title", "") + " " + str(c.get("body", ""))) for c in (citations or [])])
     src += " " + " ".join([str(r) for r in (tool_results or [])])
     unsupported = [n for n in nums if n not in src]

@@ -125,8 +125,6 @@ def ingest(db: Session, channel: str, from_handle: str, text: str,
                            conversation_id=conv.conversation_id)
     conv.last_activity_at = now; conv.current_channel = channel
     sess = _session(db, conv.conversation_id, channel)
-    if conv.customer_id and sess.assurance_level == "AL0":
-        sess.assurance_level = "AL2"
     seq = db.query(MessageRow).filter_by(conversation_id=conv.conversation_id).count()
     m = MessageRow(message_id=new_id("message"), conversation_id=conv.conversation_id,
                    channel_session_id=sess.channel_session_id, sequence_no=seq,
