@@ -486,7 +486,6 @@ async def ws_read_model(conv_id: str, ctx=Depends(require_perm("conversation.rea
         intents = db.query(IntentRow).filter_by(conversation_id=conv_id).order_by(IntentRow.classified_at).all()
         tool_calls = db.query(ToolCallRow).filter_by(conversation_id=conv_id).order_by(ToolCallRow.called_at).all()
         sla_ids = [c.case_id for c in cases] + [t.ticket_id for t in tickets]
-        from .core.ids import short_reference
         sla = db.query(_models.SlaRecordRow).filter(_models.SlaRecordRow.object_id.in_(sla_ids)).all() if sla_ids else []
         return {"conversation_id": conv_id,
                 "conversation": {"status": conversation.status, "language": conversation.language,
@@ -496,8 +495,8 @@ async def ws_read_model(conv_id: str, ctx=Depends(require_perm("conversation.rea
                 "handoff": {"handoff_id": h.handoff_id, "reason_code": h.reason_code, "priority_score": h.priority_score,
                             "severity": h.severity, "state": h.state,
                             "accepted_by": h.accepted_by} if h else None,
-                "cases": [{"case_id": c.case_id, "customer_reference": c.customer_reference, "status": c.status, "severity_confirmed": c.severity_confirmed, "category": c.category} for c in cases],
-                "tickets": [{"ticket_id": t.ticket_id, "customer_reference": short_reference("ticket", t.ticket_id), "status": t.status, "type": t.type, "priority": t.priority, "description": t.description} for t in tickets],
+                "cases": [{"case_id": c.case_id, "status": c.status, "severity_confirmed": c.severity_confirmed} for c in cases],
+                "tickets": [{"ticket_id": t.ticket_id, "status": t.status} for t in tickets],
                 "messages": [{"message_id": m.message_id, "sequence_no": m.sequence_no, "direction": m.direction,
                               "author_type": m.author_type, "author_id": m.author_id, "content": m.content,
                               "citations": m.citations, "tool_call_ids": m.tool_call_ids,

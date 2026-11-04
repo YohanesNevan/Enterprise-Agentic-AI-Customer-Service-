@@ -14,8 +14,8 @@ ROLE_PERMS: dict[str, set[str]] = {
     "customer": {"ticket.read", "case.read", "evidence.upload", "feedback.submit", "handoff.initiate", "conversation.read", "conversation.write"},
     "ai_agent": {"ticket.create", "ticket.read", "case.create", "case.read", "evidence.request", "sla.read", "handoff.initiate", "conversation.read", "conversation.write", "knowledge.read", "tool.invoke"},
     "cs_agent": {"conversation.read", "conversation.write", "knowledge.read", "knowledge.document.ingest", "tool.invoke", "ticket.create", "ticket.read", "ticket.update", "case.create", "case.read", "case.update", "evidence.request", "handoff.accept", "handoff.initiate", "sla.read"},
-    "supervisor": {"conversation.read", "conversation.write", "knowledge.read", "knowledge.document.ingest", "tool.invoke", "ticket.read", "ticket.update", "ticket.create", "case.read", "case.create", "case.update", "case.close", "sla.read", "sla.override", "escalation.resolve", "handoff.initiate", "handoff.accept", "evidence.request", "tool.invoke_write_sensitive", "audit.read", "analytics.read"},
-    "complaint_officer": {"ticket.read", "ticket.update", "case.read", "case.update", "case.close", "evidence.adjudicate", "sla.read", "knowledge.read", "knowledge.document.ingest"},
+    "supervisor": {"conversation.read", "conversation.write", "knowledge.read", "knowledge.document.ingest", "tool.invoke", "case.read", "case.create", "case.update", "case.close", "sla.read", "sla.override", "escalation.resolve", "handoff.initiate", "handoff.accept", "evidence.request", "tool.invoke_write_sensitive", "audit.read", "analytics.read"},
+    "complaint_officer": {"case.read", "case.update", "case.close", "evidence.adjudicate", "sla.read", "knowledge.read", "knowledge.document.ingest"},
     "qa_analyst": {"qa.review", "case.read", "knowledge.read", "knowledge.document.ingest"},
     "knowledge_manager": {"knowledge.read", "knowledge.write", "knowledge.document.ingest"},
     # RBAC-05: administrative privileges do not grant conversation-content access.
