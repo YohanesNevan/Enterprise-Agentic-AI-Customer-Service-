@@ -1,0 +1,52 @@
+INFO:     Will watch for changes in these directories: ['G:\\CapstoneProject_file\\CapstoneProjec_v3']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [2652] using WatchFiles
+runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3\data\uploads llm_provider=gemini llm_model=gemini-2.5-flash llm_timeout_ms=20000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
+INFO:     Started server process [12008]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=RESOURCE_NOT_FOUND http_status=404 rpc_status=NOT_FOUND
+gemini_generation_failure_reason reason=MODEL_OR_ENDPOINT_NOT_FOUND
+llm_answer_generation_failed environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G provider_error_code=RESOURCE_NOT_FOUND sources=5
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-N9HKYH8EH51DCKJBNGEA4NS6K8 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=0 article_results=0 document_results=0
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-R01P2T3GYWT12K9JQX4CR93PZA intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=NO_MATCH retrieval_sources=0 handoff_decision=QUEUED
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-JETFHG3546N1EERSVTAG233642 intent=INFO_ACCOUNT_BALANCE decision=CLARIFY routing_reason=CLASSIFIED_INTENT retrieval_outcome=NOT_RUN retrieval_sources=0 handoff_decision=NOT_REQUIRED
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-97GSMD9WMYNPKZDAP3EMW7VYDD intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=NOT_RUN retrieval_sources=0 handoff_decision=QUEUED
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=RESOURCE_NOT_FOUND http_status=404 rpc_status=NOT_FOUND
+gemini_generation_failure_reason reason=MODEL_OR_ENDPOINT_NOT_FOUND
+llm_answer_generation_failed environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G provider_error_code=RESOURCE_NOT_FOUND sources=5
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-XYKD0T6FPB53WZDC64CBS4RBF3 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-F7KECADGNQFB8DE4F5E8Q56ADD intent=GEN_SMALL_TALK_OTHER decision=ACT routing_reason=CLASSIFIED_INTENT retrieval_outcome=NOT_RUN retrieval_sources=0 handoff_decision=NOT_REQUIRED
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-25XWZDZCHREJ15E97HYGYNDS50 intent=GEN_SMALL_TALK_OTHER decision=ACT routing_reason=CLASSIFIED_INTENT retrieval_outcome=NOT_RUN retrieval_sources=0 handoff_decision=NOT_REQUIRED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=2 results=0 article_results=0 document_results=0
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-8TJ098ZSR2Z51C2SX00E03BQX5 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=NO_MATCH retrieval_sources=0 handoff_decision=QUEUED
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=6 statuses={"ready":6} outcome=ok
+knowledge_diag event=upload environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=7 statuses={"ready":7} outcome=ready
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=7 statuses={"ready":7} outcome=ok
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=1 results=1 article_results=0 document_results=1
+gemini_generation_failed function=F4 provider_error_code=RESOURCE_NOT_FOUND http_status=404 rpc_status=NOT_FOUND
+gemini_generation_failure_reason reason=MODEL_OR_ENDPOINT_NOT_FOUND
+llm_answer_generation_failed environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G provider_error_code=RESOURCE_NOT_FOUND sources=1
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-Q2EV1GQ3HR9BN1PNYK8RAPFX60 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=1 handoff_decision=NOT_REQUIRED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=3 results=0 article_results=0 document_results=0
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-JZSWK9ZMN14WZ4C7MB4C5VM139 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=NO_MATCH retrieval_sources=0 handoff_decision=QUEUED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=1 results=1 article_results=0 document_results=1
+gemini_generation_failed function=F4 provider_error_code=RESOURCE_NOT_FOUND http_status=404 rpc_status=NOT_FOUND
+gemini_generation_failure_reason reason=MODEL_OR_ENDPOINT_NOT_FOUND
+llm_answer_generation_failed environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G provider_error_code=RESOURCE_NOT_FOUND sources=1
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-D31VCV8MTJ8JMDC21AB3JDM86G correlation_id=COR-CNYMN3FMT94168SC1KMNJD071W intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=1 handoff_decision=NOT_REQUIRED

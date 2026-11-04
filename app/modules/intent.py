@@ -65,6 +65,15 @@ def _is_greeting_only(text: str) -> bool:
     return normalized in {"apa kabar", "ada orang", "tes ada orang", "test ada orang",
                           "testing ada orang", "ada orang ya", "ada orang di sana"}
 
+def _info_request_phrase(t: str) -> bool:
+    """Imperative information requests ("beritahu saya profil perusahaan") are retrieval questions,
+    not unknown intents. Retrieval + grounding still decide whether an answer or a knowledge-gap handoff follows."""
+    return bool(re.search(
+        r"\b(?:beritahu|beri\s+tahu|ceritakan|sebutkan|jelaskan|informasikan|tolong\s+jelaskan|"
+        r"saya\s+(?:ingin|mau|butuh)\s+(?:tahu|mengetahui|informasi)|info(?:rmasi)?\s+(?:tentang|mengenai|soal))\b"
+        r"|\b(?:profil|sejarah|visi|misi|latar\s+belakang)\s+(?:perusahaan|bank|kami|ini)\b", t))
+
+
 def _human_agent_requested(text: str) -> bool:
     import re
     t = (text or "").casefold()
@@ -144,6 +153,7 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
                                    "kenapa?", "jelaskan ", "maksudnya ", "what ", "how ",
                                    "where ", "why "))
                      or any(p in t for p in ("apa itu ", "apa yang harus saya lakukan", "bagaimana bisa "))
+                     or _info_request_phrase(t)
                      or reverse_what_question or generic_question)
     forced_intents = {"CMP_FRAUD_SUSPICION", "CMP_STAFF_CONDUCT"}
     if human_action:

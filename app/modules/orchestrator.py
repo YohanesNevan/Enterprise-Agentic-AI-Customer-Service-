@@ -543,6 +543,16 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
             audit_svc.emit(tenant_id, corr, "SYSTEM", "llm-provider", "knowledge.answer_generation_failed",
 
                            "conversation", conv_id, "llm-provider", result=str(code)[:40])
+            # Extractive fallback: sajikan kutipan dokumen yang relevan secara faktual jika LLM provider gagal/503
+            top_text = (source_inputs[0].text or "").strip() if source_inputs else ""
+            if top_text:
+                reply = top_text if len(top_text) <= 1200 else top_text[:1197] + "..."
+                ConvSvc.append_outbound(db, conv_id, reply, citations=citations)
+                _log_routing(tenant_id, conv_id, corr, cls, "EXTRACTIVE_FALLBACK", len(source_inputs))
+                return {"turn_id": turn_id, "intent": cls, "handoff": False,
+                        "reason": "EXTRACTIVE_FALLBACK", "reply": reply,
+                        "citations": citations}
+
 
             reply = "Saya menemukan sumber informasi yang relevan, tetapi jawaban belum dapat dibuat saat ini. Silakan coba kembali beberapa saat lagi."
 
