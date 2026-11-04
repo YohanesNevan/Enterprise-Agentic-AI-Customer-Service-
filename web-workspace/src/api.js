@@ -20,6 +20,26 @@ async function installDevelopmentSession(endpoint, username, password) {
   return developmentPrincipal
 }
 
+export async function devUniversalLogin(username, password) {
+  try {
+    return await installDevelopmentSession('/v1/dev-auth/login', username, password)
+  } catch (err) {
+    // Jika endpoint baru belum termuat (backend belum restart), fallback otomatis ke rute lama
+    if (err?.status === 404) {
+      try {
+        return await installDevelopmentSession('/v1/dev-auth/customer/login', username, password)
+      } catch (custErr) {
+        try {
+          return await installDevelopmentSession('/v1/dev-auth/staff/login', username, password)
+        } catch {
+          throw custErr
+        }
+      }
+    }
+    throw err
+  }
+}
+
 export function devCustomerLogin(username, password) {
   return installDevelopmentSession('/v1/dev-auth/customer/login', username, password)
 }

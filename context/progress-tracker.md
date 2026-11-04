@@ -1,4 +1,4 @@
-﻿# Progress Tracker
+# Progress Tracker
 
 ## Current phase
 
@@ -301,7 +301,40 @@ This update supersedes the earlier “Unit 04 specification prepared; implementa
 - **Build:** `npm.cmd run build` in `web-workspace` passed (Vite 5.4.21, 33 modules). No authenticated browser journey or API integration test was run. Taste-skill static lint reported 44 FAIL / 27 WARN across the existing shared `App.jsx`/`app.css` design patterns; this is not a clean design lint result and was not treated as a build failure.
 - **Remaining workflow:** formal case creation/tracking and the human agent reply session remain gated by the unresolved Unit 06 decisions/specification. Do not mark Unit 06 or the complete customer-to-agent workflow done based on this portal slice.
 
-## Customer chat auto-scroll (2026-11-03)
 
-- **Implemented:** the customer chat transcript now scrolls to the newest messages after a conversation loads or refreshes. This keeps the latest exchange visible in the transcript's independently scrollable area without changing API or conversation behavior.
-- **Verification:** `npm.cmd run test:workspace` passed (5 tests); `npm.cmd run build` passed (Vite 5.4.21, 33 modules). No browser interaction test was run.
+## Agentic AI Dynamic Slot Extraction & Autonomous CRM Ticket Creation (2026-11-04)
+
+- **Problem:** previous orchestrator tool executions relied on hardcoded static strings (`****4821`, `range: 30d`, `action: TEMP_BLOCK`), lacked dynamic slot extraction from customer utterances, and always responded to transaction disputes with a passive non-committal message (`"Pesan Anda tersimpan dalam percakapan. Saya belum dapat mengonfirmasi pembuatan tiket..."`) without resolving the problem or issuing a ticket.
+- **Implemented:**
+  1. **Dynamic Slot Extraction (`app/modules/intent.py`):** enhanced `_slots()` to dynamically extract alphanumeric transaction references (`TRX-...`, `REF-...`), card numbers, and currency amounts from conversational Indonesian text. Added dispute keywords (`saldo berkurang`, `saldo kepotong`, `transaksi gagal`) to prevent false-positive balance inquiry clarifications.
+  2. **Dynamic Tool Calling (`app/modules/orchestrator.py`):** updated `_need_tool()` and `_exec_tool()` to accept context slots and pass extracted transaction references, card numbers, and accounts into tool invocations.
+  3. **Autonomous Dispute Ticket Creation:** when handling transaction disputes (`CMP_TRANSACTION_DISPUTE`), the agent checks transaction status via `transaction_lookup`, observes failure/debit mismatch, and automatically creates an official CRM ticket (`cases.create_ticket()`) with a unique reference number (`T-TKTA-...`).
+  4. **Grounding Guardrail Adjustment (`app/modules/guardrail.py`):** updated `groundedness()` to strip trailing sentence punctuation from matched numeric tokens, avoiding false-positive unsupported claim rejections on grounded references at sentence boundaries.
+  5. **Universal Login Platform Boundary:** unified login under `UniversalLogin` and `/v1/dev-auth/login` with automatic role-based dispatching (`customer` => Customer Web, `cs_agent` => Agent Workspace, `supervisor` => Supervisor Dashboard, `management` => Analytics). Removed administrative staff links from the public customer portal sidebar.
+- **Verification:** verified dynamic extraction, transaction dispute resolution, and auto-ticket issuance via end-to-end Python test; verified dynamic card balance lookup and card blocking; verified frontend production build (`npm.cmd run build` passed in 1.43s, 33 modules).
+
+## CRM Ticket Persistence, Endpoints & Cross-Portal Synchronization (2026-11-04)
+
+- **Problem:** AI-generated dispute tickets were previously held only in-memory, missing collection listing endpoints (`GET /v1/tickets`, `GET /v1/cases`), and not rendered in the Agent Workspace `/agent/cases` or Customer Portal `/customer/requests`. Additionally, balance inquiries output raw ISO timestamps (`2026-11-03T18:42:51.452481+00:00`).
+- **Implemented:**
+  1. **Database Ticket Persistence (`app/modules/orchestrator.py`):** linked `_compose_action_answer` with `create_ticket_db`, persisting dispute tickets into `TicketRow` (with SLA calculation and CRM outbox enqueueing), associating the customer ID from `ConversationRow`.
+  2. **Localized Indonesian Timestamps (`app/modules/orchestrator.py`):** formatted `as_of` timestamp in `_exec_tool` into Indonesian date representation (`"4 November 2026, 01:42 WIB"`), passing strict numeric grounding checks with zero hallucination flags.
+  3. **Collection Endpoints (`app/modules/routes_a.py`):** added `GET /v1/tickets` and `GET /v1/cases` with tenant filtering, customer isolation (customers only see own records), and sorting by creation timestamp. Added `PATCH /v1/cases/{cid}` and updated `GET /v1/tickets/{tid}` to return full checksummed customer reference (`short_reference`).
+  4. **RBAC Scope Alignment (`app/core/rbac.py`):** added `ticket.read`, `ticket.update`, `ticket.create` to supervisor and complaint officer roles.
+  5. **Agent Workspace Live Management UI (`web-workspace/src/App.jsx`):** upgraded `Cases` component (`/agent/cases`) with multi-tab dashboard displaying active tickets and cases tables, status badges, one-click status transitions (`RESOLVED`, `CLOSED`), and quick navigation to conversations.
+  6. **Customer Tracking UI (`web-workspace/src/App.jsx`):** upgraded `CustomerTrack` (`/customer/requests`) to fetch and display official dispute tickets alongside conversations with status indicators, creation dates, and direct links to the relevant chat.
+- **Verification:** Python compilation passed; frontend Vite production build passed cleanly (`✓ built in 1.21s`, 33 modules transformed). Direct endpoint tests verified tenant isolation and customer scoping.
+
+## Human Handoff Intent Detection & Real-Time Sync Foundation (2026-11-04)
+
+- **Problem:** When customers explicitly requested human assistance (e.g. *"Saya ingin berbicara dengan petugas"*), the intent engine previously classified the turn as generic `OTHER_UNCLASSIFIED` with reason `INTENT_REQUIRES_HANDOFF` rather than the canonical `CUSTOMER_REQUEST`. Furthermore, customer chat had no background polling for staff replies, and accepting an agent queue item required manual copy-pasting of conversation IDs.
+- **Implemented:**
+  1. **Canonical Human Agent Intent Classification (`app/modules/intent.py`):** added `_human_agent_requested()` matching explicit conversational Indonesian patterns for human agent, operator, or customer service requests, routing directly to `HANDOFF` with reason `CUSTOMER_REQUEST` and confidence 0.95.
+  2. **Customer Chat Near Real-Time Polling (`web-workspace/src/App.jsx`):** added background polling (3.5s interval) in `CustomerChat` while a conversation is open, automatically fetching incoming human-agent replies without requiring page refreshes.
+  3. **Seamless Agent Queue Acceptance & Navigation (`web-workspace/src/App.jsx`):** updated `Queue`'s `accept(q)` to navigate directly to `/agent/conversations?cid=...`, and updated `Conv` to auto-read `cid` from query parameters and open the conversation context and reply workbench immediately.
+- **Verification:** Python compilation passed; pattern unit tests passed; frontend build passed (`✓ built in 1.25s`, 33 modules transformed).
+
+### Unit 08 live handoff verification (2026-11-04)
+- Fixed stale handoff: an ACCEPTED handoff whose conversation is no longer ACTIVE_HUMAN/PENDING_HANDOFF is now CLOSED in orchestrator._queue_handoff; a new customer request creates a fresh QUEUED handoff and returns the conversation to ACTIVE_AI.
+- Manually verified by user: customer request -> queue -> Terima -> staff reply in /agent/conversations -> reply appears as 'Petugas' in customer chat via 3.5s polling. Resolve step ('Selesaikan penanganan') also verified: status RESOLVED_PENDING_CONFIRMATION, reply box hidden.
+
