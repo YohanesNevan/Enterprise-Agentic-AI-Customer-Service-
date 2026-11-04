@@ -1,0 +1,75 @@
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.cloud}
+
+  redis:
+    restart: unless-stopped
+    ports: !reset []
+
+  minio:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env.cloud}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env.cloud}
+
+  mailpit:
+    ports: !reset []
+
+  api:
+    restart: unless-stopped
+    ports: !reset []
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: !reset []
+    environment:
+      DATABASE_URL: postgresql+psycopg://eaics:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.cloud}@postgres:5432/eaics
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: http://minio:9000
+      S3_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET: ${MINIO_ROOT_PASSWORD}
+      ENVIRONMENT: ${ENVIRONMENT:-demo}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env.cloud}
+      LLM_PROVIDER: ${LLM_PROVIDER:-stub}
+      LLM_MODEL: ${LLM_MODEL:-stub-1.0}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      SYNTHETIC_SEED: ${SYNTHETIC_SEED:-42}
+      T0_ANCHOR: ${T0_ANCHOR:-2026-03-01T00:00:00Z}
+      TEST_MODE: "false"
+
+  sim-crm:
+    restart: unless-stopped
+    ports: !reset []
+
+  frontend:
+    build:
+      context: ./web-workspace
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST to the public DNS hostname}
+      SITE_USER: ${SITE_USER:?Set SITE_USER for the demo gate}
+      SITE_PASSWORD_HASH: ${SITE_PASSWORD_HASH:?Set SITE_PASSWORD_HASH for the demo gate}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS certificate notices}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - frontend
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
