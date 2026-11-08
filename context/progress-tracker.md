@@ -24,6 +24,7 @@ Complete and verify the customer conversation journey; production identity remai
 - Confirmed the backend already defines the `customer` role and the API test helper can sign test-only customer tokens. A trusted production issuer and customer account provisioning are still absent.
 - Found a cross-customer replay risk: provider-message deduplication in `app/modules/conversation.py` is global and returns the prior conversation ID before tenant/owner checks. The Unit 04 spec requires fixing this and adding regression coverage before customer access is exposed.
 - Started Vite at `http://127.0.0.1:5173/`; local HTTP GET returned 200 and the application title. This is a launch/HTTP smoke check only; no browser rendering was verified.
+- Implemented LangGraph StateGraph agentic decision loop in `app/modules/agent_graph.py` with TriageNode, ClarifyNode, GreetingNode, ToolNode, RAGNode, LLMNode, and HandoffNode. Integrated seamlessly into `orchestrator.run_turn` with automated test suite in `tests/test_agent_graph.py` (4/4 tests passed).
 
 ## Current status
 

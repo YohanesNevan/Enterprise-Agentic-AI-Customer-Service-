@@ -197,8 +197,13 @@ def _sess(db: Session, conv_id: str, channel: str = "WEB_CHAT") -> ChannelSessio
 
 
 def run_turn(db: Session, conv_id: str, text: str, corr: str,
-
              channel: str = "WEB_CHAT", actor: str = "AI_AGENT", tenant_id: str = "TNT-TEST") -> dict:
+    if os.getenv("USE_LANGGRAPH", "true").lower() == "true":
+        try:
+            from .agent_graph import run_turn_langgraph
+            return run_turn_langgraph(db, conv_id, text, corr, channel=channel, actor=actor, tenant_id=tenant_id)
+        except Exception as exc:
+            _logger.warning("langgraph_turn_failed_fallback: %s", exc)
 
     t0 = time.time()
 
