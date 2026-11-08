@@ -40,7 +40,7 @@ DOC_STATUS_READY = "ready"
 DOC_STATUS_FAILED = "failed"
 _logger = logging.getLogger("eaics.knowledge")
 _logger.setLevel(logging.INFO)
-_SEARCH_STOPWORDS = {"apa", "itu", "yang", "harus", "saya", "lakukan", "jika", "di", "ke", "dari", "dan", "atau", "untuk", "dengan", "pada", "ini", "kepada", "the", "what", "is", "how", "do", "i", "if", "my", "in", "of", "a", "an", "berapa", "bolehkah", "apakah"}
+_SEARCH_STOPWORDS = {"apa", "itu", "yang", "harus", "saya", "lakukan", "jika", "di", "ke", "dari", "dan", "atau", "untuk", "dengan", "pada", "ini", "kepada", "the", "what", "is", "how", "do", "i", "if", "my", "in", "of", "a", "an", "berapa", "bolehkah", "apakah", "jelaskan", "jelasin", "dong", "sih", "deh", "ya", "kan", "ceritakan", "ceritain", "sebutkan", "sebutin", "tolong", "beritahu", "kasih", "tahu", "tau", "info", "informasi", "mengenai", "tentang", "soal", "mohon"}
 
 def _search_terms(value: str) -> list[str]:
     return [word for word in re.findall(r"[\w]+", value.casefold(), flags=re.UNICODE)
@@ -662,7 +662,7 @@ def search_chunks(db: Session, query: str, tenant_id: str, limit: int = 5,
         title_terms = set(_search_terms(doc.title or ""))
         hits = sum(1 for w in words if w in body or w in title_terms)
         score = hits / max(1, len(words)) if words else 0.0
-        if score >= 0.30 and (len(words) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(words) * 0.3 or hits >= 2):
             lang_boost = 0.1 if language == "id" else 0
             scored.append((min(1.0, score + lang_boost), c, doc))
     scored.sort(key=lambda x: -x[0])
@@ -703,7 +703,7 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
         title_terms = set(_search_terms(a.title or ""))
         hits = sum(1 for w in query_terms if w in body or w in title_terms)
         score = hits / max(1, len(query_terms)) if query_terms else 0.0
-        if score >= 0.30 and (len(query_terms) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(query_terms) * 0.3 or hits >= 2):
             lang_boost = 0.1 if a.language == language else 0
             scored.append((score + lang_boost, a, v, "article"))
     # Potongan dokumen siap pakai
@@ -718,7 +718,7 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
         title_terms = set(_search_terms(doc.title or ""))
         hits = sum(1 for w in words if w in body or w in title_terms)
         score = hits / max(1, len(words)) if words else 0.0
-        if score >= 0.30 and (len(words) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(words) * 0.3 or hits >= 2):
             lang_boost = 0.1 if language == "id" else 0
             scored.append((score + lang_boost, c, doc, "document"))
     scored.sort(key=lambda x: -x[0])

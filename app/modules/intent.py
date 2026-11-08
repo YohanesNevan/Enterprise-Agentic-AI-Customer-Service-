@@ -156,9 +156,19 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
                      or _info_request_phrase(t)
                      or reverse_what_question or generic_question)
     forced_intents = {"CMP_FRAUD_SUSPICION", "CMP_STAFF_CONDUCT"}
+    dispute_patterns = (
+        r"\b(?:saldo|dana|uang)\b.*\b(?:terpotong|kepotong|berkurang|hilang)\b",
+        r"\b(?:uang|dana)\b.*\b(?:tidak|gak|nggak|belum)\b.*\b(?:keluar|masuk|sampai)\b",
+        r"\b(?:gagal|batal|error)\b.*\b(?:tarik|transfer|debet|debit|kirim)\b",
+        r"\btransaksi\b.*\bgagal\b",
+        r"\bsalah\b.*\bdebet\b",
+    )
+    is_dispute = any(re.search(p, t, re.IGNORECASE) for p in dispute_patterns) or any(
+        s in t for s in ("gagal transfer", "transaksi gagal", "salah debet", "saldo kepotong", "saldo berkurang", "saldo terpotong", "tidak masuk")
+    )
     if human_action:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.95, 0.0
-    elif any(s in t for s in ("gagal transfer", "transaksi gagal", "salah debet", "saldo kepotong", "saldo berkurang", "saldo terpotong", "tidak masuk")):
+    elif is_dispute:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.90, 0.0
     elif informational and top not in forced_intents and not any(w in t for w in ("ditipu", "penipuan", "diancam", "dipaksa", "saldo", "rekening", "blokir", "mutasi")):
         top, top_c, second_c = "INFO_PRODUCT_POLICY", 0.80, 0.0

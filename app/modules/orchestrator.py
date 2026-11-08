@@ -510,7 +510,7 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
 
             generated = generate_validated(build_provider(), LLMFunction.F4,
 
-                                           F4Input(question=effective_question, sources=source_inputs), timeout_ms=10000)
+                                           F4Input(question=effective_question, sources=source_inputs), timeout_ms=None)
 
             if not isinstance(generated, F4Output) or not generated.claim_map:
 
