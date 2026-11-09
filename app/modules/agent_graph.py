@@ -198,8 +198,8 @@ def greeting_node(state: AgentState) -> dict[str, Any]:
     db: Session = state["db"]
     conv_id = state["conv_id"]
     reply = (
-        "Halo! Saya asisten virtual layanan perbankan EAICS. "
-        "Ada yang bisa saya bantu terkait produk, kartu, rekening, atau transaksi Anda hari ini?"
+        "Halo! Selamat datang di layanan pelanggan kami. "
+        "Ada yang bisa saya bantu terkait informasi produk, layanan, atau kendala akun Anda hari ini?"
     )
     ConvSvc.append_outbound(db, conv_id, reply)
     return {"reply": reply, "handoff": False, "reason": "GREETING"}
@@ -419,10 +419,26 @@ def llm_node(state: AgentState) -> dict[str, Any]:
             content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
             content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
 
-            reply = (
-                f"Berdasarkan informasi resmi layanan kami:\n\n"
-                f"{content_snippet}"
+            # Guardrail anti-leak: Cegah dokumen panduan internal / rule bot terbongkar ke customer
+            is_internal_guide = bool(
+                re.search(
+                    r"(jangan mengarang|contoh sapaan|panduan menanggapi|chatbot eaics|status yang disarankan)",
+                    content_body,
+                    re.IGNORECASE,
+                )
             )
+
+            if is_internal_guide:
+                reply = (
+                    "Mohon maaf, rincian informasi mengenai hal tersebut belum tercantum dalam "
+                    "dokumentasi resmi kami saat ini. Silakan hubungi tim dukungan kami atau sampaikan kendala Anda "
+                    "secara lebih spesifik agar dapat kami bantu."
+                )
+            else:
+                reply = (
+                    f"Berdasarkan informasi resmi layanan kami:\n\n"
+                    f"{content_snippet}"
+                )
             ConvSvc.append_outbound(db, conv_id, reply, citations=citations)
             _log_routing(tenant_id, conv_id, corr, cls, "EXTRACTIVE_FALLBACK", len(source_inputs))
             return {

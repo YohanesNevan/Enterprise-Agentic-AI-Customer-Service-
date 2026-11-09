@@ -572,7 +572,21 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
                     cleaned_lines.append(line)
                 content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
                 content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
-                reply = f"Berdasarkan informasi resmi layanan kami:\n\n{content_snippet}"
+                is_internal_guide = bool(
+                    re.search(
+                        r"(jangan mengarang|contoh sapaan|panduan menanggapi|chatbot eaics|status yang disarankan)",
+                        content_body,
+                        re.IGNORECASE,
+                    )
+                )
+                if is_internal_guide:
+                    reply = (
+                        "Mohon maaf, rincian informasi mengenai hal tersebut belum tercantum dalam "
+                        "dokumentasi resmi kami saat ini. Silakan hubungi tim dukungan kami atau sampaikan kendala Anda "
+                        "secara lebih spesifik agar dapat kami bantu."
+                    )
+                else:
+                    reply = f"Berdasarkan informasi resmi layanan kami:\n\n{content_snippet}"
                 ConvSvc.append_outbound(db, conv_id, reply, citations=citations)
                 _log_routing(tenant_id, conv_id, corr, cls, "EXTRACTIVE_FALLBACK", len(source_inputs))
                 return {"turn_id": turn_id, "intent": cls, "handoff": False,
