@@ -8,6 +8,8 @@ import logging
 
 import os
 
+import re
+
 import time
 
 from sqlalchemy.orm import Session
@@ -198,6 +200,8 @@ def _sess(db: Session, conv_id: str, channel: str = "WEB_CHAT") -> ChannelSessio
 
 def run_turn(db: Session, conv_id: str, text: str, corr: str,
              channel: str = "WEB_CHAT", actor: str = "AI_AGENT", tenant_id: str = "TNT-TEST") -> dict:
+    # CRITICAL PRESERVATION (RULE 11): Official Agentic Decision Loop is LangGraph StateGraph.
+    # Do not bypass or remove this delegation.
     if os.getenv("USE_LANGGRAPH", "true").lower() == "true":
         try:
             from .agent_graph import run_turn_langgraph
@@ -549,9 +553,26 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
 
                            "conversation", conv_id, "llm-provider", result=str(code)[:40])
             # Extractive fallback: sajikan kutipan dokumen yang relevan secara faktual jika LLM provider gagal/503
-            top_text = (source_inputs[0].text or "").strip() if source_inputs else ""
-            if top_text:
-                reply = top_text if len(top_text) <= 1200 else top_text[:1197] + "..."
+            raw_text = (source_inputs[0].text or "").strip() if source_inputs else ""
+            if raw_text:
+                raw_text = raw_text.replace("\t", " ")
+                raw_text = re.sub(r"[ ]{2,}", " ", raw_text)
+                lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+                cleaned_lines = []
+                skip_idx = -1
+                for i, line in enumerate(lines):
+                    if i <= skip_idx:
+                        continue
+                    if re.search(r"(_\w+|\.pdf|\.md)\b", line, re.IGNORECASE):
+                        continue
+                    if re.match(r"^\d+\.$", line) and i + 1 < len(lines):
+                        cleaned_lines.append(f"{line} {lines[i+1]}")
+                        skip_idx = i + 1
+                        continue
+                    cleaned_lines.append(line)
+                content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
+                content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
+                reply = f"Berdasarkan informasi resmi layanan kami:\n\n{content_snippet}"
                 ConvSvc.append_outbound(db, conv_id, reply, citations=citations)
                 _log_routing(tenant_id, conv_id, corr, cls, "EXTRACTIVE_FALLBACK", len(source_inputs))
                 return {"turn_id": turn_id, "intent": cls, "handoff": False,

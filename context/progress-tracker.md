@@ -25,6 +25,7 @@ Complete and verify the customer conversation journey; production identity remai
 - Found a cross-customer replay risk: provider-message deduplication in `app/modules/conversation.py` is global and returns the prior conversation ID before tenant/owner checks. The Unit 04 spec requires fixing this and adding regression coverage before customer access is exposed.
 - Started Vite at `http://127.0.0.1:5173/`; local HTTP GET returned 200 and the application title. This is a launch/HTTP smoke check only; no browser rendering was verified.
 - Implemented LangGraph StateGraph agentic decision loop in `app/modules/agent_graph.py` with TriageNode, ClarifyNode, GreetingNode, ToolNode, RAGNode, LLMNode, and HandoffNode. Integrated seamlessly into `orchestrator.run_turn` with automated test suite in `tests/test_agent_graph.py` (4/4 tests passed).
+- Completed Unit 06 and Unit 07: Implemented `POST /v1/customer/complaints` and `GET /v1/customer/complaints` in `app/modules/routes_a.py` with strict tenant and customer-owner isolation and SLA calculation. Upgraded customer portal UI (`CustomerRequest` and `CustomerTrack` in `web-workspace/src/App.jsx`) with dual-mode official complaint filing, category selection, confirmation cards, SLA target tracking, and progress status badges. Verified with `tests/test_customer_complaints.py` (2/2 passed) and frontend Vite production build (33 modules transformed).
 
 ## Current status
 

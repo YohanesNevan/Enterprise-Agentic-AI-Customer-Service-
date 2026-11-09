@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from typing import Any, TypedDict
 
@@ -388,10 +389,40 @@ def llm_node(state: AgentState) -> dict[str, Any]:
             "conversation", conv_id, "llm-provider", result=str(code)[:40]
         )
 
-        # Extractive fallback: sajikan kutipan dokumen faktual jika LLM provider gagal/stub
-        top_text = (source_inputs[0]["text"] or "").strip() if source_inputs else ""
-        if top_text:
-            reply = top_text if len(top_text) <= 1200 else top_text[:1197] + "..."
+        # CRITICAL PRESERVATION (RULE 11): Do not remove this sanitization block.
+        # It guarantees natural phrasing and strips raw file headers (e.g. '02_products_services')
+        # if the LLM provider triggers an extractive fallback.
+        # Extractive fallback: sajikan kutipan dokumen faktual yang sudah dirapikan jika LLM provider gagal/stub
+        raw_text = (source_inputs[0]["text"] or "").strip() if source_inputs else ""
+        if raw_text:
+            # Ganti karakter tab dengan spasi dan normalkan spasi ganda
+            raw_text = raw_text.replace("\t", " ")
+            raw_text = re.sub(r"[ ]{2,}", " ", raw_text)
+
+            # Bersihkan metadata/nama file mentah di baris awal (misal: "CloudNova Teknologi - 02_products_services")
+            lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+            cleaned_lines = []
+            skip_idx = -1
+            for i, line in enumerate(lines):
+                if i <= skip_idx:
+                    continue
+                # Abaikan baris kode file seperti "02_products_services" atau header internal file
+                if re.search(r"(_\w+|\.pdf|\.md)\b", line, re.IGNORECASE):
+                    continue
+                # Rapikan nomor daftar yang terpisah baris (misal "1." lalu baris baru "Teks...")
+                if re.match(r"^\d+\.$", line) and i + 1 < len(lines):
+                    cleaned_lines.append(f"{line} {lines[i+1]}")
+                    skip_idx = i + 1
+                    continue
+                cleaned_lines.append(line)
+
+            content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
+            content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
+
+            reply = (
+                f"Berdasarkan informasi resmi layanan kami:\n\n"
+                f"{content_snippet}"
+            )
             ConvSvc.append_outbound(db, conv_id, reply, citations=citations)
             _log_routing(tenant_id, conv_id, corr, cls, "EXTRACTIVE_FALLBACK", len(source_inputs))
             return {

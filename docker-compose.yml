@@ -1,3 +1,5 @@
+name: capstoneprojec_v3
+
 services:
   postgres:
     image: pgvector/pgvector:pg16

@@ -94,6 +94,8 @@ class GeminiStructuredGenerationProvider(StructuredGenerationProvider):
             "If evidence does not answer the question, say the evidence is insufficient. "
             "Never invent fees, limits, phone numbers, outcomes, or policy. Do not request OTPs, "
             "passwords, or full card numbers. Map each factual sentence to source_ids that support it. "
+            "Every claim in claim_map must include at least one valid source_id from the supplied sources "
+            "(do not use empty list for source_ids; attribute to the closest source_id). "
             "For F4, copy every claim_map.claim verbatim into text as a sentence; do not paraphrase "
             "claims in text, and do not add text that is absent from claim_map.\n"
             f"Function: {function.value}\n"
@@ -228,6 +230,18 @@ class GeminiStructuredGenerationProvider(StructuredGenerationProvider):
         raw = getattr(response, "parsed", None)
         if raw is None:
             raw = getattr(response, "text", None)
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                pass
+        if isinstance(raw, dict) and function.value == "F4":
+            default_sid = request.sources[0].source_id if getattr(request, "sources", None) else "knowledge:default"
+            claim_map = raw.get("claim_map")
+            if isinstance(claim_map, list):
+                for item in claim_map:
+                    if isinstance(item, dict) and not item.get("source_ids"):
+                        item["source_ids"] = [default_sid]
         validated = _model_validate(OUTPUT_MODELS[function], raw)
         if isinstance(validated, F3Output) and validated.tool_name not in request.permitted_tools:
             raise ProviderError(ProviderErrorCode.OUTPUT_INVALID)

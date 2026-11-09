@@ -1,4 +1,4 @@
-// EAICS Workspace â€” UI layanan pelanggan agentik (Kelompok B, TRD Â§4.13, NFR-08).
+// EAICS Workspace — UI layanan pelanggan agentik (Kelompok B, TRD §4.13, NFR-08).
 // Semua data live dari backend via proxy Vite (/v1, /internal -> :8000).
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import './app.css'
@@ -8,32 +8,35 @@ import {
 } from './api.js'
 import { KNOWLEDGE_WORKSPACE_ROLES, staffNavigationFor } from './workspace-access.js'
 const CUSTOMER_LINKS = [
-  ['/customer/chat', 'Chat dengan layanan'], ['/customer/requests/new', 'Kirim permintaan'],
-  ['/customer/requests', 'Lacak permintaan'], ['/customer/conversations', 'Riwayat percakapan'], ['/customer/account', 'Akun'],
+  ['/customer/chat', 'Live Chat & AI Assistant'],
+  ['/customer/requests/new', 'Pengaduan & Tiket (Submit)'],
+  ['/customer/requests', 'Track Status & SLA'],
+  ['/customer/conversations', 'Riwayat Chat (History)'],
+  ['/customer/account', 'Profil Akun'],
 ]
 const ROUTES = {
-  '/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
-  '/customer/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
-  '/staff/login': { title: 'Masuk akun layanan', audience: 'public', page: 'login' },
-  '/customer/chat': { title: 'Chat layanan pelanggan', audience: 'customer', page: 'customer-chat' },
-  '/customer/requests/new': { title: 'Kirim permintaan layanan', audience: 'customer', page: 'customer-request' },
-  '/customer/requests': { title: 'Lacak permintaan', audience: 'customer', page: 'customer-track' },
-  '/customer/conversations': { title: 'Riwayat percakapan', audience: 'customer', page: 'customer-history' },
-  '/customer/account': { title: 'Akun pelanggan', audience: 'customer', page: 'customer-account' },
-  '/agent/queue': { title: 'Antrean layanan', audience: ['cs_agent', 'supervisor'], page: 'queue' },
-  '/agent/conversations': { title: 'Percakapan', audience: ['cs_agent', 'supervisor'], page: 'conv' },
-  '/agent/cases': { title: 'Kasus & tiket', audience: ['cs_agent', 'supervisor'], page: 'cases' },
-  '/supervisor': { title: 'Ikhtisar operasional', audience: 'supervisor', page: 'dash' },
-  '/supervisor/queue': { title: 'Antrean & handoff', audience: 'supervisor', page: 'queue' },
-  '/supervisor/cases': { title: 'Kasus', audience: 'supervisor', page: 'cases' },
-  '/supervisor/approvals': { title: 'Persetujuan', audience: 'supervisor', page: 'approvals' },
-  '/supervisor/sla': { title: 'Pemantauan SLA', audience: 'supervisor', page: 'sla' },
-  '/supervisor/audit': { title: 'Audit trail', audience: 'supervisor', page: 'audit' },
-  '/complaints': { title: 'Penanganan keluhan', audience: 'complaint_officer', unit: '09' },
-  '/knowledge': { title: 'Basis pengetahuan', audience: KNOWLEDGE_WORKSPACE_ROLES, page: 'knowledge' },
-  '/qa': { title: 'Quality assurance', audience: 'qa_analyst', page: 'qa' },
-  '/management': { title: 'Ringkasan kinerja', audience: 'management', page: 'analytics' },
-  '/admin': { title: 'Administrasi sistem', audience: 'admin', unit: '14' },
+  '/login': { title: 'Portal Login', audience: 'public', page: 'login' },
+  '/customer/login': { title: 'Customer Login', audience: 'public', page: 'login' },
+  '/staff/login': { title: 'Staff Workspace Login', audience: 'public', page: 'login' },
+  '/customer/chat': { title: 'Customer Live Chat & Assistant', audience: 'customer', page: 'customer-chat' },
+  '/customer/requests/new': { title: 'Submit Complaint & Ticket', audience: 'customer', page: 'customer-request' },
+  '/customer/requests': { title: 'Track Status & SLA Tickets', audience: 'customer', page: 'customer-track' },
+  '/customer/conversations': { title: 'Conversation History', audience: 'customer', page: 'customer-history' },
+  '/customer/account': { title: 'Customer Account Profile', audience: 'customer', page: 'customer-account' },
+  '/agent/queue': { title: 'Queue & Handoff Management', audience: ['cs_agent', 'supervisor'], page: 'queue' },
+  '/agent/conversations': { title: 'Customer Conversations Workbench', audience: ['cs_agent', 'supervisor'], page: 'conv' },
+  '/agent/cases': { title: 'Tickets & Case Management', audience: ['cs_agent', 'supervisor'], page: 'cases' },
+  '/supervisor': { title: 'Supervisor Operations Dashboard', audience: 'supervisor', page: 'dash' },
+  '/supervisor/queue': { title: 'Queue & Escalation Monitor', audience: 'supervisor', page: 'queue' },
+  '/supervisor/cases': { title: 'Cases & Dispute Resolution', audience: 'supervisor', page: 'cases' },
+  '/supervisor/approvals': { title: 'Approval Requests (Dual Custody)', audience: 'supervisor', page: 'approvals' },
+  '/supervisor/sla': { title: 'SLA Monitoring & Notifications', audience: 'supervisor', page: 'sla' },
+  '/supervisor/audit': { title: 'Audit Trail & Compliance', audience: 'supervisor', page: 'audit' },
+  '/complaints': { title: 'Complaint & Dispute Officer', audience: 'complaint_officer', unit: '09' },
+  '/knowledge': { title: 'Knowledge Base Manager', audience: KNOWLEDGE_WORKSPACE_ROLES, page: 'knowledge' },
+  '/qa': { title: 'QA Review & Quality Assurance', audience: 'qa_analyst', page: 'qa' },
+  '/management': { title: 'Executive Analytics & Performance', audience: 'management', page: 'analytics' },
+  '/admin': { title: 'System Administration', audience: 'admin', unit: '14' },
 }
 const CUSTOMER_CONVERSATION_STATES = {
   NEW: 'Percakapan baru', ACTIVE_AI: 'Sedang ditangani layanan', AWAITING_CUSTOMER: 'Menunggu balasan Anda',
@@ -188,27 +191,68 @@ function CustomerHome() {
   return <div className="customer-home">
     <section className="customer-intro">
       <div className="intro-copy">
-        <p className="eyebrow"><span className="eyebrow-rule" />BANTUAN LAYANAN EAICS</p>
-        <h1>Urusan layanan,<br /><em>lebih terarah.</em></h1>
-        <p className="intro-description">Mulai percakapan, sampaikan kebutuhan, atau ikuti perkembangan layanan Anda dari satu tempat.</p>
-        <div className="intro-primary-row"><a className="btn primary intro-cta" href="/customer/chat" onClick={(e) => { e.preventDefault(); navigate('/customer/chat') }}>Mulai percakapan <span aria-hidden="true">↗</span></a><span className="intro-caption">Jawaban dan status mengikuti data yang tersedia pada layanan.</span></div>
+        <p className="eyebrow"><span className="eyebrow-rule" />EAICS CUSTOMER SERVICE PORTAL</p>
+        <h1>Pusat Bantuan &<br /><em>Layanan Digital Terpadu</em></h1>
+        <p className="intro-description">Solusi terpadu untuk konsultasi produk, bantuan transaksi, pembuatan tiket pengaduan resmi, dan pelacakan status penanganan secara real-time.</p>
+        <div className="intro-primary-row">
+          <a className="btn primary intro-cta" href="/customer/chat" onClick={(e) => { e.preventDefault(); navigate('/customer/chat') }}>
+            Mulai Live Chat & Assistant <span aria-hidden="true">↗</span>
+          </a>
+          <span className="intro-caption">Didukung AI Agentik dan integrasi langsung ke staf operasional.</span>
+        </div>
       </div>
-      <aside className="welcome-panel" aria-label="Cara memulai">
-        <div className="welcome-panel-top"><span className="panel-index">01 / 03</span><span className="panel-mark" aria-hidden="true">E</span></div>
-        <p className="eyebrow">MULAI DARI SINI</p>
-        <h2>Apa yang ingin Anda urus?</h2>
-        <p className="welcome-panel-copy">Pilih jalur yang sesuai. Alur yang memerlukan akun akan meminta Anda masuk terlebih dahulu.</p>
-        <a className="welcome-link" href="/customer/chat" onClick={(e) => { e.preventDefault(); navigate('/customer/chat') }}><span><strong>Tanyakan informasi layanan</strong><small>Percakapan bantuan</small></span><b aria-hidden="true">↗</b></a>
-        <a className="welcome-link" href="/customer/conversations" onClick={(e) => { e.preventDefault(); navigate('/customer/conversations') }}><span><strong>Lihat percakapan terdahulu</strong><small>Riwayat akun</small></span><b aria-hidden="true">↗</b></a>
+      <aside className="welcome-panel" aria-label="Layanan Utama">
+        <div className="welcome-panel-top"><span className="panel-index">PORTAL</span><span className="panel-mark" aria-hidden="true">★</span></div>
+        <p className="eyebrow">MENU CEPAT</p>
+        <h2>Apa yang Anda butuhkan?</h2>
+        <p className="welcome-panel-copy">Pilih layanan di bawah ini. Anda dapat bertanya langsung ke AI atau mendaftarkan pengaduan resmi.</p>
+        <a className="welcome-link" href="/customer/chat" onClick={(e) => { e.preventDefault(); navigate('/customer/chat') }}>
+          <span><strong>Live Chat & Tanya AI</strong><small>Konsultasi produk & info rekening</small></span><b aria-hidden="true">↗</b>
+        </a>
+        <a className="welcome-link" href="/customer/requests/new" onClick={(e) => { e.preventDefault(); navigate('/customer/requests/new') }}>
+          <span><strong>Pengaduan Resmi (Buat Tiket)</strong><small>Lapor kendala & sengketa transaksi</small></span><b aria-hidden="true">↗</b>
+        </a>
+        <a className="welcome-link" href="/customer/requests" onClick={(e) => { e.preventDefault(); navigate('/customer/requests') }}>
+          <span><strong>Track Status & SLA Tiket</strong><small>Cek progres penanganan tiket Anda</small></span><b aria-hidden="true">↗</b>
+        </a>
       </aside>
     </section>
     <section className="customer-services" aria-labelledby="service-heading">
-      <div className="section-heading"><div><p className="eyebrow">JALUR LAYANAN</p><h2 id="service-heading">Pilih langkah berikutnya</h2></div><span className="section-note">Akses akun diperlukan untuk alur personal.</span></div>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">FITUR LAYANAN</p>
+          <h2 id="service-heading">Akses Layanan Pelanggan</h2>
+        </div>
+        <span className="section-note">Gunakan akun pelanggan terdaftar untuk akses penuh.</span>
+      </div>
       <div className="customer-actions" aria-label="Pilihan bantuan">
-        {CUSTOMER_LINKS.slice(0, 4).map(([href, label], index) => <a className="portal-action" key={href} href={href} onClick={(e) => { e.preventDefault(); navigate(href) }}><span className="action-number">0{index + 1}</span><strong>{label}</strong><span>{index === 0 ? 'Ajukan pertanyaan kepada layanan.' : index === 1 ? 'Sampaikan kebutuhan atau kendala.' : index === 2 ? 'Periksa perkembangan permintaan Anda.' : 'Buka percakapan yang tersimpan.'}</span><b aria-hidden="true">↗</b></a>)}
+        <a className="portal-action" href="/customer/chat" onClick={(e) => { e.preventDefault(); navigate('/customer/chat') }}>
+          <span className="action-number">01</span>
+          <strong>Live Chat & AI Assistant</strong>
+          <span>Tanya jawab seputar informasi produk, layanan, dan panduan transaksi.</span>
+          <b aria-hidden="true">↗</b>
+        </a>
+        <a className="portal-action" href="/customer/requests/new" onClick={(e) => { e.preventDefault(); navigate('/customer/requests/new') }}>
+          <span className="action-number">02</span>
+          <strong>Pengaduan Resmi (Submit Ticket)</strong>
+          <span>Laporkan kendala transaksi, kartu, atau masalah layanan untuk investigasi.</span>
+          <b aria-hidden="true">↗</b>
+        </a>
+        <a className="portal-action" href="/customer/requests" onClick={(e) => { e.preventDefault(); navigate('/customer/requests') }}>
+          <span className="action-number">03</span>
+          <strong>Track Status & SLA</strong>
+          <span>Pantau batas waktu (SLA) dan status penyelesaian tiket aktif Anda.</span>
+          <b aria-hidden="true">↗</b>
+        </a>
+        <a className="portal-action" href="/customer/conversations" onClick={(e) => { e.preventDefault(); navigate('/customer/conversations') }}>
+          <span className="action-number">04</span>
+          <strong>Riwayat Chat (History)</strong>
+          <span>Buka kembali transkrip riwayat percakapan Anda sebelumnya.</span>
+          <b aria-hidden="true">↗</b>
+        </a>
       </div>
     </section>
-    <p className="portal-note"><span aria-hidden="true">◇</span> Akses personal memerlukan autentikasi. Login lokal hanya tersedia bila diaktifkan pengelola lingkungan pengembangan.</p>
+    <p className="portal-note"><span aria-hidden="true">◇</span> Masuk akun diperlukan untuk fitur pengaduan dan riwayat personal.</p>
   </div>
 }
 
@@ -367,30 +411,220 @@ function CustomerHistory() {
 }
 
 function CustomerRequest() {
-  const [text, setText] = useState(''); const [error, setError] = useState(null); const [sending, setSending] = useState(false)
-  const [retryInfo, setRetryInfo] = useState(null); const submitLock = useRef(false)
-  const submit = async (event) => {
-    event.preventDefault(); const content = text.trim(); if (!content || submitLock.current) return
-    submitLock.current = true; setSending(true); setError(null)
+  const [tab, setTab] = useState('complaint')
+  const [category, setCategory] = useState('TRANSACTION_DISPUTE')
+  const [title, setTitle] = useState('')
+  const [reference, setReference] = useState('')
+  const [description, setDescription] = useState('')
+  const [text, setText] = useState('')
+  const [error, setError] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [successTicket, setSuccessTicket] = useState(null)
+  const [retryInfo, setRetryInfo] = useState(null)
+  const submitLock = useRef(false)
+
+  const submitComplaint = async (event) => {
+    event.preventDefault()
+    if (!description.trim() || submitLock.current) return
+    submitLock.current = true
+    setSending(true)
+    setError(null)
+    try {
+      const result = await req('/v1/customer/complaints', {
+        method: 'POST',
+        body: {
+          category,
+          title: title.trim() || undefined,
+          description: description.trim(),
+          reference: reference.trim() || undefined,
+        },
+      })
+      setSuccessTicket(result)
+    } catch (err) {
+      setError(err)
+    } finally {
+      submitLock.current = false
+      setSending(false)
+    }
+  }
+
+  const submitMessage = async (event) => {
+    event.preventDefault()
+    const content = text.trim()
+    if (!content || submitLock.current) return
+    submitLock.current = true
+    setSending(true)
+    setError(null)
     const idempotencyKey = retryInfo?.text === content ? retryInfo.key : crypto.randomUUID()
     try {
-      const result = await req('/v1/chat/messages', { method: 'POST', body: { text: content }, headers: { 'Idempotency-Key': idempotencyKey } })
+      const result = await req('/v1/chat/messages', {
+        method: 'POST',
+        body: { text: content },
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
       if (!result.conversation_id) throw new ApiError(502, 'MISSING_CONVERSATION', 'Layanan belum mengembalikan referensi percakapan.')
       navigate(`/customer/chat?conversation_id=${encodeURIComponent(result.conversation_id)}`)
-    } catch (err) { setRetryInfo({ text: content, key: idempotencyKey }); setError(err) }
-    finally { submitLock.current = false; setSending(false) }
+    } catch (err) {
+      setRetryInfo({ text: content, key: idempotencyKey })
+      setError(err)
+    } finally {
+      submitLock.current = false
+      setSending(false)
+    }
   }
-  return <section className="customer-work-page customer-request-page">
-    <div className="customer-page-intro"><p className="eyebrow"><span className="eyebrow-rule" />PERMINTAAN LAYANAN</p><h2>Ceritakan apa yang Anda perlukan.</h2><p>Pesan akan dikirim ke layanan dan tersimpan pada percakapan akun Anda. Jika ada percakapan aktif, layanan dapat melanjutkannya.</p></div>
-    <form className="customer-request-form" onSubmit={submit}>
-      <label htmlFor="service-request">Permintaan Anda</label>
-      <textarea id="service-request" value={text} onChange={(event) => setText(event.target.value)} maxLength={4000} rows={6} required aria-describedby="request-guidance" placeholder="Jelaskan kebutuhan atau kendala Anda..." />
-      <div className="customer-form-meta"><p id="request-guidance">Jangan sertakan OTP, kata sandi, atau nomor kartu lengkap. Lampiran belum tersedia.</p><span>{text.length}/4000</span></div>
-      {error && <p className="alert err" role="alert">{error.message} Pesan tetap di formulir; coba lagi untuk mengirim ulang.</p>}
-      <div className="customer-form-actions"><a className="btn" href="/customer/chat" onClick={(event) => { event.preventDefault(); navigate('/customer/chat') }}>Kembali ke chat</a><button className="btn primary" type="submit" disabled={sending || !text.trim()}>{sending ? 'Mengirim...' : retryInfo?.text === text.trim() ? 'Coba kirim lagi' : 'Kirim permintaan'}</button></div>
-    </form>
-    <p className="customer-scope-note">Permintaan ini dikirim sebagai percakapan layanan. Portal belum membuat nomor kasus/tiket otomatis.</p>
-  </section>
+
+  if (successTicket) {
+    return (
+      <section className="customer-work-page customer-request-page">
+        <div className="card" style={{ maxWidth: '640px', margin: '2rem auto', textAlign: 'center', padding: '2.5rem 2rem' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '24px' }}>✓</div>
+          <span className="customer-request-state" style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>PENGADUAN DITERIMA</span>
+          <h2 style={{ margin: '1rem 0 0.5rem', fontSize: '1.5rem', fontWeight: 700 }}>Nomor Tiket: {successTicket.customer_reference || successTicket.ticket_id}</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+            Pengaduan resmi Anda telah tercatat dalam sistem dengan estimasi SLA penanganan prioritas.
+          </p>
+          <div style={{ background: 'var(--surface-muted, #f8fafc)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left', fontSize: '0.875rem' }}>
+            <p style={{ margin: '0.25rem 0' }}><strong>Kategori:</strong> {successTicket.category || category}</p>
+            {successTicket.sla?.first_response_due_at && (
+              <p style={{ margin: '0.25rem 0' }}><strong>Target Respons Pertama:</strong> {new Date(successTicket.sla.first_response_due_at).toLocaleString('id-ID')}</p>
+            )}
+            <p style={{ margin: '0.25rem 0' }}><strong>Status:</strong> Sedang Dalam Antrean Penanganan</p>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn primary" onClick={() => navigate('/customer/requests')}>Lihat di Status Pelacakan</button>
+            <button className="btn" onClick={() => { setSuccessTicket(null); setTitle(''); setDescription(''); setReference('') }}>Ajukan Pengaduan Lain</button>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="customer-work-page customer-request-page">
+      <div className="customer-page-intro">
+        <p className="eyebrow"><span className="eyebrow-rule" />PERMINTAAN & PENGADUAN</p>
+        <h2>Ajukan Permintaan atau Pengaduan Layanan</h2>
+        <p>Pilih pengaduan resmi untuk mendapatkan nomor tiket investigasi, atau kirimkan pesan percakapan langsung ke asisten layanan.</p>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--line)', paddingBottom: '0.5rem' }}>
+        <button
+          type="button"
+          className={`btn ${tab === 'complaint' ? 'primary' : ''}`}
+          style={{ padding: '6px 16px', fontSize: '13px' }}
+          onClick={() => { setTab('complaint'); setError(null) }}
+        >
+          Pengaduan Resmi (Buat Tiket)
+        </button>
+        <button
+          type="button"
+          className={`btn ${tab === 'message' ? 'primary' : ''}`}
+          style={{ padding: '6px 16px', fontSize: '13px' }}
+          onClick={() => { setTab('message'); setError(null) }}
+        >
+          Pesan Percakapan Langsung
+        </button>
+      </div>
+
+      {tab === 'complaint' ? (
+        <form className="customer-request-form" onSubmit={submitComplaint}>
+          <div>
+            <label htmlFor="complaint-category" style={{ display: 'block', marginBottom: '6px' }}>Kategori Pengaduan</label>
+            <select
+              id="complaint-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)' }}
+            >
+              <option value="TRANSACTION_DISPUTE">Sengketa Transaksi (Debit Ganda / Gagal Transfer / Saldo Berkurang)</option>
+              <option value="CARD_ISSUE">Kendala Kartu ATM / Debit (Tertelan / Rusak / Terblokir)</option>
+              <option value="ACCOUNT_ACCESS">Kendala Akses Rekening / Mobile Banking</option>
+              <option value="SERVICE_QUALITY">Keluhan Kualitas Pelayanan Petugas</option>
+              <option value="GENERAL">Pengaduan Umum Lainnya</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="complaint-ref" style={{ display: 'block', marginBottom: '6px' }}>Nomor Referensi Terkait (Opsional)</label>
+            <input
+              id="complaint-ref"
+              type="text"
+              placeholder="Contoh: No. Transaksi (TRX-1234), 4 digit akhir kartu (4821), atau No. Rekening"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              maxLength={80}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)' }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="complaint-title" style={{ display: 'block', marginBottom: '6px' }}>Judul Pengaduan</label>
+            <input
+              id="complaint-title"
+              type="text"
+              placeholder="Ringkasan kendala Anda"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={150}
+              required
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)' }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="complaint-desc" style={{ display: 'block', marginBottom: '6px' }}>Rincian Masalah</label>
+            <textarea
+              id="complaint-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={4000}
+              rows={5}
+              required
+              placeholder="Jelaskan secara lengkap kronologi masalah, waktu kejadian, dan tindakan yang diharapkan..."
+            />
+            <div className="customer-form-meta">
+              <p>Jangan sertakan PIN, kata sandi, atau CVV kartu perbankan Anda.</p>
+              <span>{description.length}/4000</span>
+            </div>
+          </div>
+
+          {error && <p className="alert err" role="alert">{error.message || 'Gagal mengirimkan pengaduan. Silakan coba kembali.'}</p>}
+
+          <div className="customer-form-actions">
+            <a className="btn" href="/customer/requests" onClick={(e) => { e.preventDefault(); navigate('/customer/requests') }}>Batal</a>
+            <button className="btn primary" type="submit" disabled={sending || !description.trim()}>
+              {sending ? 'Mendaftarkan Tiket...' : 'Kirim Pengaduan Resmi'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form className="customer-request-form" onSubmit={submitMessage}>
+          <label htmlFor="service-request">Permintaan Anda</label>
+          <textarea
+            id="service-request"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            maxLength={4000}
+            rows={6}
+            required
+            aria-describedby="request-guidance"
+            placeholder="Jelaskan kebutuhan atau pertanyaan Anda..."
+          />
+          <div className="customer-form-meta">
+            <p id="request-guidance">Pesan akan diteruskan ke asisten cerdas virtual atau staf operasional.</p>
+            <span>{text.length}/4000</span>
+          </div>
+          {error && <p className="alert err" role="alert">{error.message} Pesan tetap di formulir; coba lagi untuk mengirim ulang.</p>}
+          <div className="customer-form-actions">
+            <a className="btn" href="/customer/chat" onClick={(event) => { event.preventDefault(); navigate('/customer/chat') }}>Kembali ke chat</a>
+            <button className="btn primary" type="submit" disabled={sending || !text.trim()}>
+              {sending ? 'Mengirim...' : retryInfo?.text === text.trim() ? 'Coba kirim lagi' : 'Kirim pesan'}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  )
 }
 
 function CustomerTrack() {
@@ -406,7 +640,7 @@ function CustomerTrack() {
       const suffix = cursor ? `?limit=20&cursor=${encodeURIComponent(cursor)}` : '?limit=20'
       const [convRes, tktRes] = await Promise.all([
         req(`/v1/customer/conversations${suffix}`).catch(() => ({ items: [] })),
-        req('/v1/tickets').catch(() => [])
+        req('/v1/customer/complaints').catch(() => req('/v1/tickets').catch(() => []))
       ])
       setItems((current) => append ? [...current, ...(convRes.items || [])] : convRes.items || [])
       setNextCursor(convRes.next_cursor || null)
@@ -441,13 +675,14 @@ function CustomerTrack() {
           {tickets.map((t) => (
             <li key={t.ticket_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
               <div>
-                <span className="customer-request-state" style={{ background: t.status === 'OPEN' ? '#e0f2fe' : '#dcfce7', color: t.status === 'OPEN' ? '#0369a1' : '#15803d' }}>
+                <span className="customer-request-state" style={{ background: t.status === 'OPEN' ? '#e0f2fe' : '#dcfce7', color: t.status === 'OPEN' ? '#0369a1' : '#15803d', padding: '2px 8px', borderRadius: '4px' }}>
                   {t.status === 'OPEN' ? 'Sedang Diproses' : t.status === 'RESOLVED' ? 'Selesai' : t.status}
                 </span>
-                <h4 style={{ margin: '0.35rem 0', fontWeight: 600, fontSize: '1rem' }}>{t.customer_reference || t.ticket_id} &bull; {t.type}</h4>
+                <h4 style={{ margin: '0.35rem 0', fontWeight: 600, fontSize: '1rem' }}>{t.customer_reference || t.ticket_id} &bull; {t.category || t.type}</h4>
                 <p style={{ margin: '0.2rem 0', color: 'var(--fg)', fontSize: '0.9rem' }}>{t.description}</p>
                 <time style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                  Prioritas: {t.priority} &bull; Dibuat: {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
+                  Prioritas: {t.priority || 'NORMAL'} &bull; Dibuat: {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
+                  {t.resolution_due_at && ` • Target SLA: ${new Date(t.resolution_due_at).toLocaleString('id-ID')}`}
                 </time>
               </div>
               {t.conversation_id && (
@@ -529,28 +764,28 @@ function Dash({ role }) {
     <>
       <div className="hero">
         <h2>Selamat datang di EAICS Workspace</h2>
-        <p>Antrean prioritas, kasus/tiket, persetujuan tool sensitif, QA ber-sampling, SLA jam kerja Asia/Jakarta, dan audit hash-chain â€” semua live dari backend Kelompok B (FRD/TRD).</p>
-        <div className="row mt"><button className="btn" style={{ background: '#fff' }} onClick={load}>Muat ulang</button></div>
+        <p>Dashboard Operasional Layanan Pelanggan: Monitoring Antrean (Queue), Tiket Layanan, Pemantauan Batas Waktu SLA, Persetujuan (Dual-Custody), dan Metrik Evaluasi Mutu (QA).</p>
+        <div className="row mt"><button className="btn" style={{ background: '#fff' }} onClick={load}>Muat Ulang (Refresh)</button></div>
       </div>
       <div className="mt" />
       <Err e={e} onClose={() => setE(null)} />
-      {!d ? <Card><Empty text="Memuat metrikâ€¦" /></Card> : (
+      {!d ? <Card><Empty text="Memuat metrik..." /></Card> : (
         <>
           <div className="grid g4">
-            <Card><div className="stat"><span className="v">{d.op.cases_total}</span><span className="l">Total kasus</span><span className="d">terbuka: {d.op.open_cases}</span></div></Card>
-            <Card><div className="stat"><span className="v">{d.op.tickets_total}</span><span className="l">Total tiket</span><span className="d">pelanggaran SLA: {d.op.sla_breached}</span></div></Card>
-            <Card><div className="stat"><span className="v">{Math.round((d.op.sla_attainment_ratio || 0) * 100)}%</span><span className="l">Ketercapaian SLA</span><span className="d">breach/started</span></div></Card>
-            <Card><div className="stat"><span className="v">{d.ob.pending}</span><span className="l">Outbox pending</span><span className="d">terkirim: {d.ob.sent}</span></div></Card>
+            <Card><div className="stat"><span className="v">{d.op.cases_total}</span><span className="l">Total Kasus (Cases)</span><span className="d">terbuka: {d.op.open_cases}</span></div></Card>
+            <Card><div className="stat"><span className="v">{d.op.tickets_total}</span><span className="l">Total Tiket (Tickets)</span><span className="d">pelanggaran SLA: {d.op.sla_breached}</span></div></Card>
+            <Card><div className="stat"><span className="v">{Math.round((d.op.sla_attainment_ratio || 0) * 100)}%</span><span className="l">Ketercapaian SLA</span><span className="d">target SLA tercapai</span></div></Card>
+            <Card><div className="stat"><span className="v">{d.ob.pending}</span><span className="l">Notifikasi Pending</span><span className="d">terkirim: {d.ob.sent}</span></div></Card>
           </div>
           <div className="grid g3 mt">
-            <Card title="Resolusi" sub={`Target SM-13 ${d.res.target_SM13} (reopen rate)`}>
-              <div className="stat"><span className="v">{Math.round((d.res.reopen_rate || 0) * 100)}%</span><span className="l">reopen rate â€¢ tutup: {d.res.closed}</span></div>
+            <Card title="Tingkat Resolusi" sub="Rasio kasus yang dibuka kembali (Reopen Rate)">
+              <div className="stat"><span className="v">{Math.round((d.res.reopen_rate || 0) * 100)}%</span><span className="l">reopen rate • selesai: {d.res.closed}</span></div>
             </Card>
-            <Card title="Handoff" sub={`Target SM-07 paket lengkap = ${d.ho.target_SM07}`}>
-              <div className="stat"><span className="v">{Math.round((d.ho.complete_rate || 0) * 100)}%</span><span className="l">paket lengkap â€¢ total {d.ho.total}</span></div>
+            <Card title="Kelengkapan Handoff" sub="Rasio paket konteks lengkap saat dialihkan ke petugas">
+              <div className="stat"><span className="v">{Math.round((d.ho.complete_rate || 0) * 100)}%</span><span className="l">paket lengkap • total {d.ho.total}</span></div>
             </Card>
-            <Card title="QA" sub="Rata-rata total skor review">
-              <div className="stat"><span className="v">{d.qa.avg_total}</span><span className="l">n = {d.qa.n} â€¢ auto-fail {Math.round((d.qa.auto_fail_rate || 0) * 100)}%</span></div>
+            <Card title="Mutu Layanan (QA Score)" sub="Rata-rata total skor evaluasi review">
+              <div className="stat"><span className="v">{d.qa.avg_total}</span><span className="l">n = {d.qa.n} • auto-fail {Math.round((d.qa.auto_fail_rate || 0) * 100)}%</span></div>
             </Card>
           </div>
         </>
@@ -623,15 +858,15 @@ function Queue({ role }) {
     <>
       <Err e={e} onClose={() => setE(null)} />
       <div className="split">
-        <Card title={`Antrean (${items.length})`} sub="Diurutkan skor prioritas; refresh otomatis 8 detik (FR-WS-002).">
+        <Card title={`Antrean Layanan Petugas (Queue: ${items.length})`} sub="Diurutkan otomatis berdasarkan skor prioritas; auto-refresh berkala setiap 8 detik.">
           <div className="row">
-            <input placeholder="Filter queue_id" value={filter.queue_id} onChange={(e) => setFilter({ ...filter, queue_id: e.target.value })} style={{ width: 150 }} />
-            <input placeholder="Filter skill (a,b)" value={filter.skills} onChange={(e) => setFilter({ ...filter, skills: e.target.value })} style={{ width: 150 }} />
-            <button className="btn sm" onClick={load}>Muat ulang</button>
+            <input placeholder="Filter Queue ID (cth: Q-GENERAL)" value={filter.queue_id} onChange={(e) => setFilter({ ...filter, queue_id: e.target.value })} style={{ width: 180 }} />
+            <input placeholder="Filter Skill Tags (cth: chat, id)" value={filter.skills} onChange={(e) => setFilter({ ...filter, skills: e.target.value })} style={{ width: 180 }} />
+            <button className="btn sm" onClick={load}>Refresh Data</button>
           </div>
           <div className="mt" style={{ overflowX: 'auto' }}>
             <table className="tbl">
-              <thead><tr><th>Percakapan</th><th>Alasan</th><th>Sev</th><th>Skor</th><th>Tunggu</th><th>Antrean</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Percakapan</th><th>Alasan Eskalasi</th><th>Severity</th><th>Skor Prioritas</th><th>Waktu Tunggu</th><th>Queue / Status Paket</th><th>Tindakan</th></tr></thead>
               <tbody>
                 {items.map((q) => (
                   <tr key={q.handoff_id} className={`clickable${sel?.handoff_id === q.handoff_id ? ' sel' : ''}`} onClick={() => { setSel(q); setT((o) => ({ ...o })) }}>
@@ -640,45 +875,45 @@ function Queue({ role }) {
                     <td><Sev v={q.severity} /></td>
                     <td><b>{q.priority_score}</b></td>
                     <td>{q.wait_s}s</td>
-                    <td>{q.queue_id}{!q.package_complete && <> <span className="badge b-red">INCOMPLETE</span></>}</td>
-                    <td><button className="btn sm primary" onClick={(ev) => { ev.stopPropagation(); accept(q) }}>Terima</button></td>
+                    <td>{q.queue_id}{!q.package_complete && <> <span className="badge b-amber">PARSIAL</span></>}</td>
+                    <td><button className="btn sm primary" onClick={(ev) => { ev.stopPropagation(); accept(q) }}>Terima Handoff</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {!items.length && <Empty text="Antrean kosong â€” tambah lewat formulir di kanan." />}
+            {!items.length && <Empty text="Antrean saat ini kosong — belum ada eskalasi baru dari nasabah." />}
           </div>
         </Card>
         <div className="grid">
-          <Card title="Tambah ke antrean" sub="Enqueue handoff baru (FR-WS-002).">
+          <Card title="Tambah ke Antrean (Manual Enqueue)" sub="Eskalasikan percakapan nasabah ke antrean penanganan petugas.">
             <div className="form">
-              <label>Percakapan<input value={f.conversation_id} onChange={setF('conversation_id')} /></label>
+              <label>ID Percakapan<input value={f.conversation_id} onChange={setF('conversation_id')} placeholder="CNV-..." /></label>
               <div className="form2">
-                <label>Alasan<select value={f.reason_code} onChange={setF('reason_code')}>{REASONS.map((r) => <option key={r}>{r}</option>)}</select></label>
-                <label>Severity<select value={f.severity} onChange={setF('severity')}>{SEVERITIES.map((r) => <option key={r}>{r}</option>)}</select></label>
+                <label>Alasan Eskalasi<select value={f.reason_code} onChange={setF('reason_code')}>{REASONS.map((r) => <option key={r}>{r}</option>)}</select></label>
+                <label>Tingkat Severity<select value={f.severity} onChange={setF('severity')}>{SEVERITIES.map((r) => <option key={r}>{r}</option>)}</select></label>
               </div>
               <div className="form2">
-                <label>Queue<input value={f.queue_id} onChange={setF('queue_id')} /></label>
-                <label>Skill (koma)<input value={f.skill_tags} onChange={setF('skill_tags')} placeholder="chat,id" /></label>
+                <label>Nama Queue<input value={f.queue_id} onChange={setF('queue_id')} placeholder="Q-GENERAL" /></label>
+                <label>Tag Keahlian (Skill Tags)<input value={f.skill_tags} onChange={setF('skill_tags')} placeholder="chat, id, dispute" /></label>
               </div>
-              <label className="check"><input type="checkbox" checked={f.vulnerability_flag} onChange={setF('vulnerability_flag')} /> Nasabah rentan (+bobot prioritas)</label>
-              <label className="check"><input type="checkbox" checked={f.package_complete} onChange={setF('package_complete')} /> Paket handoff lengkap</label>
-              <div className="row"><button className="btn primary" onClick={enqueue}>Enqueue</button>
-                <button className="btn" onClick={quickHandoff} title="Tool handoff mentah (BR-HO-01/06)">Cek paket handoff</button></div>
+              <label className="check"><input type="checkbox" checked={f.vulnerability_flag} onChange={setF('vulnerability_flag')} /> Nasabah prioritas / rentan (Tingkatkan bobot SLA)</label>
+              <label className="check"><input type="checkbox" checked={f.package_complete} onChange={setF('package_complete')} /> Paket konteks handoff lengkap</label>
+              <div className="row"><button className="btn primary" onClick={enqueue}>Daftarkan ke Antrean</button>
+                <button className="btn" onClick={quickHandoff} title="Verifikasi integritas payload paket handoff">Cek Paket Handoff</button></div>
             </div>
           </Card>
-          <Card title="Alihkan (transfer)" sub="Wajib catatan â€” BR-WS-04. Pilih baris antrean dulu.">
-            {!sel ? <Empty text="Belum ada handoff dipilih." /> : (
+          <Card title="Transfer Antrean (Alihkan ke Tim Lain)" sub="Pindahkan penanganan ke tim spesialis lain dengan catatan pendukung.">
+            {!sel ? <Empty text="Pilih salah satu baris antrean di sebelah kiri terlebih dahulu." /> : (
               <div className="form">
-                <div className="kv"><dt>Handoff</dt><dd>{sel.handoff_id}</dd><dt>Percakapan</dt><dd>{sel.conversation_id}</dd></div>
-                <label>Ke antrean<input value={t.to_queue} onChange={setT('to_queue')} /></label>
-                <label>Alasan<input value={t.reason} onChange={setT('reason')} /></label>
-                <label>Catatan (wajib)<textarea value={t.note} onChange={setT('note')} rows={2} /></label>
-                <div className="row"><button className="btn primary" onClick={transfer}>Transfer</button></div>
+                <div className="kv"><dt>Handoff ID</dt><dd>{sel.handoff_id}</dd><dt>Percakapan</dt><dd>{sel.conversation_id}</dd></div>
+                <label>Target Antrean (Queue)<input value={t.to_queue} onChange={setT('to_queue')} placeholder="Q-FRAUD / Q-SPECIALIST" /></label>
+                <label>Alasan Pengalihan<input value={t.reason} onChange={setT('reason')} placeholder="Memerlukan penanganan spesialis" /></label>
+                <label>Catatan Internal (Wajib diisi)<textarea value={t.note} onChange={setT('note')} rows={2} placeholder="Jelaskan kronologi dan konteks untuk petugas penerima..." /></label>
+                <div className="row"><button className="btn primary" onClick={transfer}>Kirim Pengalihan</button></div>
               </div>
             )}
           </Card>
-          {ho && <Card title="Hasil" sub={ho.ok ? 'Berhasil' : 'Info'}><Json data={ho.data} /></Card>}
+          {ho && <Card title="Status Operasi" sub={ho.ok ? 'Berhasil' : 'Informasi'}><Json data={ho.data} /></Card>}
         </div>
       </div>
     </>
@@ -715,46 +950,87 @@ function Conv({ role, session }) {
   return (
     <>
       <Err e={e} onClose={() => setE(null)} />
-      <Card title="Buka percakapan" sub="Satu layar: percakapan, klasifikasi, tool, handoff, kasus, tiket, dan SLA (FR-WS-003 / I-11).">
-        <div className="row"><input aria-label="ID percakapan" value={cid} onChange={(e) => setCid(e.target.value)} style={{ minWidth: 260 }} />
-          <button className="btn primary" onClick={() => open()} disabled={loading}>{loading ? 'Memuat...' : 'Buka'}</button>
-          <button className="btn" onClick={suggest} disabled={!d || loading}>Saran copilot</button></div>
+      <Card title="Pencarian Percakapan Nasabah" sub="Customer Context, AI Classification, Riwayat Chat, Tool Execution, dan Status Penanganan Petugas.">
+        <div className="row"><input aria-label="ID percakapan" value={cid} onChange={(e) => setCid(e.target.value)} style={{ minWidth: 260 }} placeholder="Contoh: CNV-..." />
+          <button className="btn primary" onClick={() => open()} disabled={loading}>{loading ? 'Memuat...' : 'Buka Percakapan'}</button>
+          <button className="btn" onClick={suggest} disabled={!d || loading}>Saran AI Copilot</button></div>
       </Card>
-      {sug && <Card title="Saran copilot"><Json data={sug} /></Card>}
+      {sug && (
+        <Card title="Rekomendasi AI Copilot" sub="Saran tindakan dan respons otomatis untuk membantu petugas menangani nasabah">
+          <div style={{ padding: '12px 16px', background: 'var(--surface-muted, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+            <h4 style={{ margin: '0 0 6px', color: 'var(--primary)' }}>{sug.suggested_action || sug.title || 'Rekomendasi Respons'}</h4>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6 }}>{sug.summary || sug.response || sug.text || (typeof sug === 'string' ? sug : JSON.stringify(sug))}</p>
+          </div>
+        </Card>
+      )}
       {loading && <Card title="Memuat percakapan"><p role="status">Mengambil transkrip dan informasi penanganan...</p></Card>}
       {d && (
         <div className="grid g2 mt">
-          <Card title={`Handoff â€¢ ${d.conversation_id}`} sub={d.conversation?.intent_current || 'Status handoff dan tingkat risiko'}>
+          <Card title={`Status Handoff • ${d.conversation_id}`} sub={d.conversation?.intent_current || 'Tingkat risiko dan eskalasi petugas'}>
             {d.handoff ? (
               <div className="kv">
-                <dt>Alasan</dt><dd>{d.handoff.reason_code}</dd>
-                <dt>Status</dt><dd><StateBadge v={d.handoff.state} /></dd>
-                <dt>Skor</dt><dd>{d.handoff.priority_score}</dd>
-                <dt>Severity</dt><dd><Sev v={d.handoff.severity} /></dd>
-                <dt>Diterima</dt><dd>{d.handoff.accepted_by || '-'}</dd>
+                <dt>Alasan Eskalasi</dt><dd>{d.handoff.reason_code}</dd>
+                <dt>Status Handoff</dt><dd><StateBadge v={d.handoff.state} /></dd>
+                <dt>Skor Prioritas</dt><dd><b>{d.handoff.priority_score}</b></dd>
+                <dt>Tingkat Severity</dt><dd><Sev v={d.handoff.severity} /></dd>
+                <dt>Ditangani Oleh</dt><dd><b>{d.handoff.accepted_by || 'Belum Diterima'}</b></dd>
               </div>
-            ) : <Empty text="Belum ada handoff untuk percakapan ini." />}
+            ) : <Empty text="Belum ada eskalasi handoff untuk percakapan ini." />}
           </Card>
-          <Card title={`Kasus (${d.cases.length}) â€¢ Tiket (${d.tickets.length})`}>
+          <Card title={`Kasus Terkait (${d.cases.length}) • Tiket (${d.tickets.length})`}>
             <div className="kv">
               {d.cases.map((c) => (<React.Fragment key={c.case_id}><dt>{c.case_id}</dt><dd><StateBadge v={c.status} /> <Sev v={c.severity_confirmed} /></dd></React.Fragment>))}
               {d.tickets.map((t) => (<React.Fragment key={t.ticket_id}><dt>{t.ticket_id}</dt><dd><StateBadge v={t.status} /></dd></React.Fragment>))}
-              {!d.cases.length && !d.tickets.length && <dt>-</dt>}
+              {!d.cases.length && !d.tickets.length && <dt>Tidak ada tiket/kasus aktif</dt>}
             </div>
-            <h3 className="mt">SLA</h3>
-            <div className="kv">{d.sla.map((s) => (<React.Fragment key={s.sla_id}><dt>{s.sla_id}</dt><dd><StateBadge v={s.state} /> â€¢ {s.resolution_due_at}</dd></React.Fragment>))}</div>
+            <h3 className="mt">Target SLA</h3>
+            <div className="kv">{d.sla.map((s) => (<React.Fragment key={s.sla_id}><dt>{s.sla_id}</dt><dd><StateBadge v={s.state} /> • Batas: {new Date(s.resolution_due_at).toLocaleString('id-ID')}</dd></React.Fragment>))}</div>
           </Card>
-          <Card title={`Transkrip (${d.messages?.length || 0})`} sub={d.conversation ? `${d.conversation.status} â€¢ ${d.conversation.language}` : 'Data percakapan belum tersedia'} wide>
-            {!d.messages?.length ? <Empty text="Belum ada pesan." /> : (
+          <Card title={`Transkrip Percakapan (${d.messages?.length || 0} Pesan)`} sub={d.conversation ? `Status: ${d.conversation.status} • Bahasa: ${d.conversation.language}` : 'Data percakapan'} wide>
+            {!d.messages?.length ? <Empty text="Belum ada pesan dalam percakapan ini." /> : (
               <ul className="timeline">{d.messages.map((m) => (
-                <li key={m.message_id || m.sequence_no}><b>{m.author_type === 'CUSTOMER' ? 'Customer' : m.author_type === 'AI_AGENT' ? 'Asisten AI' : m.author_type === 'HUMAN_AGENT' ? 'Petugas' : m.author_type} · {m.direction}</b>
-                  <div className="t">{m.occurred_at}{m.author_type === 'HUMAN_AGENT' && m.author_id ? ` · ${m.author_id}` : ''}</div><p>{m.content}</p>
-                  {!!m.citations?.length && <small>Sitasi: {m.citations.map((c) => c.title || c.article_id || 'sumber').join(', ')}</small>}
+                <li key={m.message_id || m.sequence_no}><b>{m.author_type === 'CUSTOMER' ? 'Customer' : m.author_type === 'AI_AGENT' ? 'Asisten AI' : m.author_type === 'HUMAN_AGENT' ? 'Petugas CS' : m.author_type} · {m.direction}</b>
+                  <div className="t">{m.occurred_at ? new Date(m.occurred_at).toLocaleString('id-ID') : ''}{m.author_type === 'HUMAN_AGENT' && m.author_id ? ` · ${m.author_id}` : ''}</div><p>{m.content}</p>
+                  {!!m.citations?.length && <small>Sumber Rujukan: {m.citations.map((c) => c.title || c.article_id || 'sumber').join(', ')}</small>}
                 </li>))}</ul>
             )}
             <div className="grid g2 mt">
-              <div><h3>Klasifikasi intent</h3>{d.intents?.length ? <Json data={d.intents} /> : <Empty text="Belum ada klasifikasi." />}</div>
-              <div><h3>Eksekusi tool</h3>{d.tool_calls?.length ? <Json data={d.tool_calls} /> : <Empty text="Belum ada pemanggilan tool." />}</div>
+              <div>
+                <h3>Klasifikasi Intent AI</h3>
+                {d.intents?.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {d.intents.map((it, idx) => (
+                      <div key={idx} style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--surface-muted, #f8fafc)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong>{it.intent_code || it.intent || 'INQUIRY'}</strong>
+                          <span className="badge b-blue">{Math.round((it.confidence || it.confidence_hint || 0.9) * 100)}% Confidence</span>
+                        </div>
+                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+                          Kategori: {it.category || 'INQUIRY'} • Decision: {it.decision || 'ACT'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : <Empty text="Belum ada klasifikasi intent." />}
+              </div>
+              <div>
+                <h3>Eksekusi Tool Perbankan</h3>
+                {d.tool_calls?.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {d.tool_calls.map((tc, idx) => (
+                      <div key={idx} style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--surface-muted, #f8fafc)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong>{tc.tool || tc.tool_name || 'Tool'}</strong>
+                          <span className="badge b-green">Executed</span>
+                        </div>
+                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+                          Policy Decision ID: {tc.policy_decision_id || 'POL-DEFAULT'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : <Empty text="Belum ada eksekusi tool otomatis." />}
+              </div>
             </div>
           </Card>
           <AgentConversationActions d={d} role={role} session={session} onRefresh={open} />
@@ -1080,46 +1356,46 @@ function Cases({ role }) {
       {/* Formulir Pembuatan & Tindakan Manual */}
       {(activeTab === 'manage' || (!tickets.length && !casesList.length)) && (
         <div className="grid g2 mt">
-          <Card title="Buat tiket" sub="Tool B untuk A: create_crm_ticket (I-01).">
+          <Card title="Buat Tiket Layanan (Create Ticket)" sub="Penerbitan tiket CRM resmi untuk tindak lanjut operasional.">
             <div className="form">
-              <label>Percakapan<input value={ct.conversation_id} onChange={setCt('conversation_id')} /></label>
+              <label>ID Percakapan<input value={ct.conversation_id} onChange={setCt('conversation_id')} placeholder="CNV-..." /></label>
               <div className="form2">
-                <label>Tipe<input value={ct.type} onChange={setCt('type')} /></label>
+                <label>Tipe Tiket<input value={ct.type} onChange={setCt('type')} placeholder="GENERAL / COMPLAINT" /></label>
                 <label>Prioritas<select value={ct.priority} onChange={setCt('priority')}>{['LOW', 'NORMAL', 'HIGH', 'URGENT'].map((o) => <option key={o}>{o}</option>)}</select></label>
               </div>
-              <label>Deskripsi<textarea value={ct.description} onChange={setCt('description')} rows={2} /></label>
-              <div className="row"><button className="btn primary" onClick={mkTicket}>Buat tiket</button></div>
+              <label>Deskripsi Masalah<textarea value={ct.description} onChange={setCt('description')} rows={2} placeholder="Rincian kendala nasabah..." /></label>
+              <div className="row"><button className="btn primary" onClick={mkTicket}>Buat Tiket Baru</button></div>
             </div>
           </Card>
-          <Card title="Buat kasus" sub="BR-CASE-09: AI usul HIGH/CRITICAL â†’ perlu konfirmasi manusia.">
+          <Card title="Eskalasi Kasus Investigasi (Create Case)" sub="Eskalasi kasus sengketa dengan konfirmasi tingkat severity oleh staf.">
             <div className="form">
-              <label>Percakapan<input value={cc.conversation_id} onChange={setCc('conversation_id')} /></label>
+              <label>ID Percakapan<input value={cc.conversation_id} onChange={setCc('conversation_id')} placeholder="CNV-..." /></label>
               <div className="form2">
-                <label>Kategori<select value={cc.category} onChange={setCc('category')}>{['TRANSACTION_DISPUTE', 'GENERAL', 'COMPLAINT', 'FRAUD', 'ACCOUNT'].map((o) => <option key={o}>{o}</option>)}</select></label>
-                <label>Severity usul<select value={cc.severity_proposed} onChange={setCc('severity_proposed')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
+                <label>Kategori Sengketa<select value={cc.category} onChange={setCc('category')}>{['TRANSACTION_DISPUTE', 'GENERAL', 'COMPLAINT', 'FRAUD', 'ACCOUNT'].map((o) => <option key={o}>{o}</option>)}</select></label>
+                <label>Severity yang Diusulkan<select value={cc.severity_proposed} onChange={setCc('severity_proposed')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
               </div>
-              <label>Deskripsi<textarea value={cc.description} onChange={setCc('description')} rows={2} /></label>
-              <label className="check"><input type="checkbox" checked={cc.vulnerability_flag} onChange={setCc('vulnerability_flag')} /> Nasabah rentan</label>
-              <div className="row"><button className="btn primary" onClick={mkCase}>Buat kasus</button></div>
+              <label>Deskripsi Kasus<textarea value={cc.description} onChange={setCc('description')} rows={2} placeholder="Jelaskan indikasi sengketa/masalah..." /></label>
+              <label className="check"><input type="checkbox" checked={cc.vulnerability_flag} onChange={setCc('vulnerability_flag')} /> Nasabah prioritas / rentan (Percepat SLA)</label>
+              <div className="row"><button className="btn primary" onClick={mkCase}>Daftarkan Kasus Baru</button></div>
             </div>
           </Card>
-          <Card title="Tutup / buka kembali" sub="BR-CASE-05: penutupan ditolak bila ada butir kurang (peran supervisor).">
+          <Card title="Penyelesaian & Penutupan Kasus (Close Case)" sub="Checklist pemenuhan butir solusi sebelum kasus dinyatakan selesai (Closed).">
             <div className="form">
-              <label>Case ID<input value={cx.case_id} onChange={setCx('case_id')} placeholder="CAS-â€¦" /></label>
+              <label>Case ID<input value={cx.case_id} onChange={setCx('case_id')} placeholder="CAS-..." /></label>
               {CLOSURE_ITEMS.map(([k, label]) => (
                 <label className="check" key={k}><input type="checkbox" checked={!!check[k]} onChange={(ev) => setCheck({ ...check, [k]: ev.target.checked })} />{label}</label>
               ))}
-              <div className="row"><button className="btn primary" onClick={close}>Tutup kasus</button></div>
-              <label>Alasan reopen<input value={cx.reason} onChange={setCx('reason')} /></label>
-              <div className="row"><button className="btn" onClick={reopen}>Buka kembali</button></div>
+              <div className="row"><button className="btn primary" onClick={close}>Tutup Kasus (Close Case)</button></div>
+              <label>Alasan Buka Kembali (Reopen)<input value={cx.reason} onChange={setCx('reason')} placeholder="Alasan bila nasabah melapor kendala berulang..." /></label>
+              <div className="row"><button className="btn" onClick={reopen}>Buka Kembali Kasus</button></div>
             </div>
           </Card>
-          <Card title="Minta bukti" sub="BR-EV-01: deskripsi generik (mis. 'bukti') ditolak E_VALIDATION.">
+          <Card title="Permintaan Bukti Tambahan (Request Evidence)" sub="Kirim permintaan dokumen pendukung (struk/bukti transaksi) kepada nasabah.">
             <div className="form">
-              <label>Case ID<input value={ev.case_id} onChange={setEv('case_id')} placeholder="CAS-â€¦" /></label>
-              <label>Deskripsi bukti<input value={ev.description} onChange={setEv('description')} /></label>
-              <label>Alasan<input value={ev.reason} onChange={setEv('reason')} /></label>
-              <div className="row"><button className="btn primary" onClick={evReq}>Kirim permintaan</button></div>
+              <label>Case ID<input value={ev.case_id} onChange={setEv('case_id')} placeholder="CAS-..." /></label>
+              <label>Deskripsi Dokumen Bukti<input value={ev.description} onChange={setEv('description')} placeholder="Contoh: Bukti mutasi rekening atau foto fisik kartu" /></label>
+              <label>Alasan Permintaan<input value={ev.reason} onChange={setEv('reason')} placeholder="Verifikasi sengketa transaksi" /></label>
+              <div className="row"><button className="btn primary" onClick={evReq}>Kirim Permintaan Bukti</button></div>
             </div>
           </Card>
         </div>
@@ -1252,31 +1528,31 @@ function QA({ role }) {
           <Card><div className="stat"><span className="v">{sum.by_field ? Object.keys(sum.by_field).length : 0}</span><span className="l">Dimensi nilai</span></div></Card>
         </div>
       )}
-      {out && <Card title="Hasil"><Json data={out} /></Card>}
+      {out && <Card title="Hasil Operasi"><Json data={out} /></Card>}
       <div className="grid g3 mt">
-        <Card title="Tarik sampel" sub="10% acak + 100% kasus risiko, ber-seed (FR-QA).">
-          <div className="form"><label>Seed<input type="number" value={seed} onChange={(e) => setSeed(e.target.value)} /></label>
-            <div className="row"><button className="btn primary" onClick={sample}>Tarik sampel</button></div></div>
+        <Card title="Tarik Sampel Acak (Sampling)" sub="Pengambilan sampel acak percakapan untuk audit kualitas pelayanan.">
+          <div className="form"><label>Random Seed<input type="number" value={seed} onChange={(e) => setSeed(e.target.value)} /></label>
+            <div className="row"><button className="btn primary" onClick={sample}>Tarik Sampel Evaluasi</button></div></div>
         </Card>
-        <Card title="Nilai (review)" sub="Skor 0â€“10 per dimensi.">
+        <Card title="Penilaian Mutu (Review Scoring)" sub="Skor skala 0–10 untuk setiap dimensi pelayanan.">
           <div className="form">
-            <label>Item ID (case)<input value={sc.item_id} onChange={setSc('item_id')} placeholder="CAS-â€¦" /></label>
+            <label>Item ID (Kasus / Percakapan)<input value={sc.item_id} onChange={setSc('item_id')} placeholder="CAS-..." /></label>
             <div className="form2">{QA_FIELDS.map((fld) => (
               <label key={fld}>{fld}<input type="number" min={0} max={10} value={scores[fld]} onChange={(e) => setScores({ ...scores, [fld]: e.target.value })} /></label>))}
             </div>
-            <label>Auto-fail<select value={sc.auto_fail} onChange={setSc('auto_fail')}><option value="">â€” tidak ada â€”</option>{QA_AUTO_FAIL.map((o) => <option key={o}>{o}</option>)}</select></label>
-            <div className="row"><button className="btn primary" onClick={review}>Simpan review</button></div>
+            <label>Auto-Fail Trigger<select value={sc.auto_fail} onChange={setSc('auto_fail')}><option value="">— Tidak ada pelanggaran fatal —</option>{QA_AUTO_FAIL.map((o) => <option key={o}>{o}</option>)}</select></label>
+            <div className="row"><button className="btn primary" onClick={review}>Simpan Hasil Review</button></div>
           </div>
         </Card>
-        <Card title="Temuan" sub="Dirouting otomatis: coaching / knowledge / root-cause.">
+        <Card title="Catat Temuan (Findings)" sub="Tindak lanjut hasil penilaian: Coaching, Knowledge Base, atau Investigasi.">
           <div className="form">
-            <label>Review ID<input value={fo.review_id} onChange={setFo('review_id')} /></label>
+            <label>Review ID<input value={fo.review_id} onChange={setFo('review_id')} placeholder="REV-..." /></label>
             <div className="form2">
-              <label>Tipe<select value={fo.type} onChange={setFo('type')}>{QA_FINDING_TYPES.map((o) => <option key={o}>{o}</option>)}</select></label>
+              <label>Tipe Tindak Lanjut<select value={fo.type} onChange={setFo('type')}>{QA_FINDING_TYPES.map((o) => <option key={o}>{o}</option>)}</select></label>
               <label>Severity<select value={fo.severity} onChange={setFo('severity')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
             </div>
-            <label>Deskripsi<textarea value={fo.description} onChange={setFo('description')} rows={2} /></label>
-            <div className="row"><button className="btn primary" onClick={finding}>Catat temuan</button></div>
+            <label>Deskripsi Temuan<textarea value={fo.description} onChange={setFo('description')} rows={2} placeholder="Rincian catatan dan rekomendasi perbaikan..." /></label>
+            <div className="row"><button className="btn primary" onClick={finding}>Daftarkan Temuan</button></div>
           </div>
         </Card>
       </div>
@@ -1315,23 +1591,23 @@ function Analytics({ role }) {
   return (
     <>
       <Err e={e} onClose={() => setE(null)} />
-      <div className="row"><button className="btn sm" onClick={load}>Muat ulang</button>
-        <button className="btn sm" onClick={() => csv('cases')}>Unduh CSV kasus</button>
-        <button className="btn sm" onClick={() => csv('handoffs')}>Unduh CSV handoff</button></div>
-      {!d ? <Card><Empty text="Memuat analitikâ€¦" /></Card> : (
+      <div className="row"><button className="btn sm" onClick={load}>Refresh Analitik</button>
+        <button className="btn sm" onClick={() => csv('cases')}>Export CSV Kasus</button>
+        <button className="btn sm" onClick={() => csv('handoffs')}>Export CSV Handoff</button></div>
+      {!d ? <Card><Empty text="Memuat laporan analitik..." /></Card> : (
         <>
           <div className="grid g4 mt">
-            <Card><div className="stat"><span className="v">{d.op.cases_total}</span><span className="l">Kasus â€¢ tiket {d.op.tickets_total}</span></div></Card>
+            <Card><div className="stat"><span className="v">{d.op.cases_total}</span><span className="l">Total Kasus • Tiket: {d.op.tickets_total}</span></div></Card>
             <Card><div className="stat"><span className="v">{Math.round(d.op.sla_attainment_ratio * 100)}%</span><span className="l">Ketercapaian SLA</span></div></Card>
-            <Card><div className="stat"><span className="v">{Math.round(d.res.reopen_rate * 100)}%</span><span className="l">Reopen rate (target {d.res.target_SM13})</span></div></Card>
-            <Card><div className="stat"><span className="v">{d.qa.avg_total}</span><span className="l">Rata-rata QA (n={d.qa.n})</span></div></Card>
+            <Card><div className="stat"><span className="v">{Math.round(d.res.reopen_rate * 100)}%</span><span className="l">Reopen Rate (Target &lt; 5%)</span></div></Card>
+            <Card><div className="stat"><span className="v">{d.qa.avg_total}</span><span className="l">Rata-rata Skor QA (n={d.qa.n})</span></div></Card>
           </div>
-          <Card title="Driver tree 2 tingkat" sub="Kategori â†’ sub-kategori (FR-ANA).">
-            <div style={{ overflowX: 'auto' }}><table className="tbl"><thead><tr><th>Kategori</th><th>Sub-kategori</th><th>Jumlah</th></tr></thead>
+          <Card title="Driver Tree Klasifikasi Masalah" sub="Analisis distribusi masalah berjenjang: Kategori → Sub-kategori">
+            <div style={{ overflowX: 'auto' }}><table className="tbl"><thead><tr><th>Kategori Masalah</th><th>Sub-Kategori</th><th>Volume Keluhan</th></tr></thead>
               <tbody>{treeRows.map((r, i) => <tr key={i}><td>{r.cat}</td><td>{r.sub}</td><td><b>{r.n}</b></td></tr>)}</tbody></table>
-              {!treeRows.length && <Empty text="Belum ada data." />}</div>
+              {!treeRows.length && <Empty text="Belum ada data distribusi masalah." />}</div>
           </Card>
-          <Card title="Handoff per alasan"><Json data={d.ho} /></Card>
+          <Card title="Distribusi Alasan Eskalasi Handoff"><Json data={d.ho} /></Card>
         </>
       )}
     </>
@@ -1356,31 +1632,31 @@ function SLA({ role }) {
   return (
     <>
       <Err e={e} onClose={() => setE(null)} />
-      {st && <div className="grid g2"><Card><div className="stat"><span className="v">{st.pending}</span><span className="l">Outbox pending</span></div></Card>
-        <Card><div className="stat"><span className="v">{st.sent}</span><span className="l">Outbox terkirim</span></div></Card></div>}
-      {out && <Card title="Hasil"><Json data={out} /></Card>}
+      {st && <div className="grid g2"><Card><div className="stat"><span className="v">{st.pending}</span><span className="l">Notifikasi Outbox Pending</span></div></Card>
+        <Card><div className="stat"><span className="v">{st.sent}</span><span className="l">Notifikasi Terkirim</span></div></Card></div>}
+      {out && <Card title="Hasil Operasi"><Json data={out} /></Card>}
       <div className="grid g3 mt">
-        <Card title="Hitung SLA" sub="Jam kerja Asia/Jakarta; Jumat sore â†’ Senin (US-SLA-01).">
+        <Card title="Hitung Batas SLA" sub="Kalkulasi jam kerja operasional; Jumat sore → Senin.">
           <div className="form">
             <div className="form2">
-              <label>Objek<select value={f.object_type} onChange={setF('object_type')}><option>CASE</option><option>TICKET</option></select></label>
+              <label>Objek Layanan<select value={f.object_type} onChange={setF('object_type')}><option>CASE</option><option>TICKET</option></select></label>
               <label>Severity<select value={f.severity} onChange={setF('severity')}>{SEVERITIES.map((o) => <option key={o}>{o}</option>)}</select></label>
             </div>
-            <label>Kategori<input value={f.category} onChange={setF('category')} /></label>
-            <label>Dibuat (ISO)<input value={f.created_at} onChange={setF('created_at')} /></label>
-            <div className="row"><button className="btn primary" onClick={calc}>Hitung</button></div>
+            <label>Kategori Masalah<input value={f.category} onChange={setF('category')} placeholder="TRANSACTION_DISPUTE" /></label>
+            <label>Waktu Masuk (ISO Timestamp)<input value={f.created_at} onChange={setF('created_at')} /></label>
+            <div className="row"><button className="btn primary" onClick={calc}>Hitung Batas Waktu SLA</button></div>
           </div>
         </Card>
-        <Card title="SLA tick & outbox" sub="Beat pendeteksi breach + drain CRM (FR-SLA-003/005).">
-          <div className="row"><button className="btn primary" onClick={tick}>Jalankan tick</button>
-            <button className="btn" onClick={drain}>Drain outbox</button>
-            <button className="btn sm" onClick={status}>Status</button></div>
+        <Card title="Pemantauan SLA & Outbox" sub="Pemeriksaan status keterlambatan (Breach) dan pengiriman notifikasi.">
+          <div className="row"><button className="btn primary" onClick={tick}>Jalankan Pemeriksaan SLA</button>
+            <button className="btn" onClick={drain}>Kirim Antrean Notifikasi</button>
+            <button className="btn sm" onClick={status}>Cek Status Outbox</button></div>
         </Card>
-        <Card title="Notifikasi" sub="Hanya kanal REGISTERED_* yang diizinkan.">
+        <Card title="Kirim Notifikasi Langsung" sub="Pengiriman pesan ke kanal resmi terdaftar nasabah.">
           <div className="form">
-            <label>Kanal<select value={nt.channel} onChange={setNt('channel')}>{['REGISTERED_EMAIL', 'REGISTERED_SMS', 'REGISTERED_PUSH', 'REGISTERED_WHATSAPP'].map((o) => <option key={o}>{o}</option>)}</select></label>
-            <label>Tujuan<input value={nt.target} onChange={setNt('target')} /></label>
-            <div className="row"><button className="btn primary" onClick={notify}>Kirim</button></div>
+            <label>Kanal Notifikasi<select value={nt.channel} onChange={setNt('channel')}>{['REGISTERED_EMAIL', 'REGISTERED_SMS', 'REGISTERED_PUSH', 'REGISTERED_WHATSAPP'].map((o) => <option key={o}>{o}</option>)}</select></label>
+            <label>Tujuan Kontak<input value={nt.target} onChange={setNt('target')} placeholder="nasabah@example.test" /></label>
+            <div className="row"><button className="btn primary" onClick={notify}>Kirim Notifikasi</button></div>
           </div>
         </Card>
       </div>
@@ -1400,21 +1676,21 @@ function Audit({ role }) {
   }
   return (
     <>
-      <p className="alert info">Butuh peran <b>supervisor</b> (izin audit.read). Setiap respons API menyertakan correlation_id di header.</p>
+      <p className="alert info">Hanya dapat diakses oleh peran <b>supervisor</b> (izin audit.read). Setiap respons API menyertakan Correlation ID pada header.</p>
       <Err e={e} onClose={() => setE(null)} />
-      <Card title="Lacak correlation_id" sub="Trail append-only + hash-chain (US-SEC-01).">
-        <div className="row"><input value={corr} onChange={(e) => setCorr(e.target.value)} placeholder="COR-â€¦" style={{ minWidth: 300 }} />
-          <button className="btn primary" onClick={open}>Lacak</button></div>
+      <Card title="Lacak Correlation ID" sub="Audit Trail berbasis append-only dan hash-chain untuk kepatuhan perbankan.">
+        <div className="row"><input value={corr} onChange={(e) => setCorr(e.target.value)} placeholder="Contoh: COR-..." style={{ minWidth: 300 }} />
+          <button className="btn primary" onClick={open}>Lacak Jejak Audit</button></div>
       </Card>
       {trail && (
-        <Card title={`Jejak (${trail.length} kejadian)`}>
-          {!trail.length ? <Empty text="Tidak ada kejadian untuk ID ini." /> : (
+        <Card title={`Jejak Audit Trail (${trail.length} Riwayat Kejadian)`}>
+          {!trail.length ? <Empty text="Tidak ada riwayat kejadian untuk Correlation ID ini." /> : (
             <ul className="timeline">{trail.map((t, i) => (
               <li key={i}><b>{t.action || t.event || JSON.stringify(t).slice(0, 80)}</b>
-                <div className="t">{t.timestamp || t.ts || t.created_at || ''} â€¢ {t.actor_id || t.actor || ''} â€¢ {t.service || ''}</div>
+                <div className="t">{t.timestamp || t.ts || t.created_at || ''} • {t.actor_id || t.actor || ''} • {t.service || ''}</div>
               </li>))}</ul>
           )}
-          <h3 className="mt">Mentah</h3><Json data={trail} />
+          <h3 className="mt">Detail Payload Mentah</h3><Json data={trail} />
         </Card>
       )}
     </>

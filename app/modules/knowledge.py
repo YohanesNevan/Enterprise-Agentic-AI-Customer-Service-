@@ -172,6 +172,8 @@ def _normalize_text(text: str) -> str:
     """Normalisasi teks tanpa merusak makna: hapus baris berlebih, spasi ganda, karakter kontrol."""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+    text = text.replace("\t", " ")
+    text = re.sub(r"[ ]{2,}", " ", text)
     lines = [line.strip() for line in text.split("\n")]
     lines = [line for line in lines if line]
     return "\n".join(lines)

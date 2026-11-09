@@ -10,3 +10,7 @@
 8. Do not represent simulated LLM, retrieval, financial, CRM, channel, storage, or notification behavior as live production behavior.
 9. Every user-facing action must have a real behavior, an explained disabled state, or an explicit prototype label. Backend authorization and ownership are mandatory even when the UI hides controls.
 10. Keep changes focused and reviewable; explain affected boundaries, risks, and verification status.
+11. **Agentic Workflow & RAG Preservation**:
+    - `app/modules/agent_graph.py` implements the verified LangGraph `StateGraph` for conversation turn orchestration. Do not disable or alter its core node transitions (`triage_node`, `greeting_node`, `clarify_node`, `tool_node`, `rag_node`, `llm_node`, `handoff_node`) without explicit architectural mandate.
+    - Preserved text sanitization in `llm_node`: Keep the raw document metadata striping and natural conversational response formulation active so the customer never receives raw markdown/PDF file headers.
+    - Customer complaint APIs (`POST/GET /v1/customer/complaints`) and frontend dual-tab tracking in `web-workspace/src/App.jsx` must remain fully operational. Always run `pytest tests/test_agent_graph.py tests/test_customer_complaints.py` before completing a task.
