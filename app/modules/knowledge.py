@@ -661,6 +661,13 @@ def search_chunks(db: Session, query: str, tenant_id: str, limit: int = 5,
                                                         tenant_id=tenant_id).first()
         if not doc:
             continue
+        doc_name = (doc.original_filename or "").casefold()
+        doc_title = (doc.title or "").casefold()
+        internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt")
+        if any(m in doc_name or m in doc_title for m in internal_markers):
+            continue
+        if re.search(r"(contoh respons|jangan mengarang|kegagalan pencarian knowledge saja|konteks saat alih tangan)", (c.content or "").casefold()):
+            continue
         title_terms = set(_search_terms(doc.title or ""))
         hits = sum(1 for w in words if w in body or w in title_terms)
         score = hits / max(1, len(words)) if words else 0.0
@@ -715,6 +722,15 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
             KnowledgeDocumentRow.status == DOC_STATUS_READY).all():
         doc = db.query(KnowledgeDocumentRow).filter_by(document_id=c.document_id).first()
         if not doc: continue
+        if not for_agent:
+            # Saring dokumen internal/SOP bot agar tidak bocor ke pelanggan umum (TRD §7.4 & FR-KM)
+            doc_name = (doc.original_filename or "").casefold()
+            doc_title = (doc.title or "").casefold()
+            internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt")
+            if any(m in doc_name or m in doc_title for m in internal_markers):
+                continue
+            if re.search(r"(contoh respons|jangan mengarang|kegagalan pencarian knowledge saja|konteks saat alih tangan)", (c.content or "").casefold()):
+                continue
         body = (c.content or "").casefold()
         words = query_terms
         title_terms = set(_search_terms(doc.title or ""))

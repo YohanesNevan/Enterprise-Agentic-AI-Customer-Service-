@@ -73,33 +73,60 @@ def _queue_handoff(db: Session, conv_id: str, reason: str, corr: str,
     state = existing.state if existing else None
 
     if not existing:
-
         from . import queue as QueueSvc
+        from . import handoff as HandoffSvc
+        from .models_a import MessageRow
+
+        recent_msgs = (
+            db.query(MessageRow)
+            .filter_by(conversation_id=conv_id)
+            .order_by(MessageRow.sequence_no.desc())
+            .limit(5)
+            .all()
+        )
+        recent_turns = [
+            {"role": "customer" if m.direction == "INBOUND" else "assistant", "text": m.content}
+            for m in reversed(recent_msgs)
+        ]
+
+        # Build partial package per TRD §16.4 & Mitra slide 20
+        partial_pkg = {
+            "customer_summary": {
+                "customer_id": conv.customer_id,
+                "name": conv.customer_id or "ANONYMOUS",
+                "contacts_masked": {},
+                "flags": {
+                    "safety_flag": bool((cls or {}).get("safety_flag")),
+                    "vulnerability_flag": bool((cls or {}).get("vulnerability_flag")),
+                }
+            },
+            "recent_turns": recent_turns or [{"role": "customer", "text": "Permintaan bantuan"}],
+            "reason_narrative": f"Eskalasi ke petugas: {reason}",
+            "intent_history": [{
+                "intent_code": (cls or {}).get("intent_code", "OTHER_UNCLASSIFIED"),
+                "confidence": float((cls or {}).get("confidence", 0.5)),
+                "decision": "HANDOFF",
+                "classified_at": None,
+                "taxonomy_version": "1.0.0"
+            }]
+        }
+        pkg_res = HandoffSvc.build_package(
+            conv_id, corr, reason,
+            {"tenant_id": tenant_id, "actor_type": "AI_AGENT", "actor_id": "orchestrator"},
+            partial=partial_pkg
+        )
 
         try:
-
             outcome = QueueSvc.enqueue(
-
                 db, conv_id, reason,
-
                 {"tenant_id": tenant_id, "actor_type": "AI_AGENT", "actor_id": "orchestrator"},
-
                 corr, severity="CRITICAL" if (cls or {}).get("safety_flag") else "MEDIUM",
-
                 language=conv.language or "id",
-
                 vulnerability_flag=bool((cls or {}).get("vulnerability_flag") or (cls or {}).get("safety_flag")),
-
-                # The queue record exists, but the full workspace handoff package is not yet implemented.
-
-                package_complete=False)
-
+                package_complete=bool(pkg_res.get("package_complete", True)))
         except Exception:
-
             db.rollback()
-
             return {"state": "UNAVAILABLE"}
-
         state = outcome["state"]
 
     if _can(db, conv_id, "PENDING_HANDOFF"):
@@ -555,23 +582,9 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
             # Extractive fallback: sajikan kutipan dokumen yang relevan secara faktual jika LLM provider gagal/503
             raw_text = (source_inputs[0].text or "").strip() if source_inputs else ""
             if raw_text:
-                raw_text = raw_text.replace("\t", " ")
-                raw_text = re.sub(r"[ ]{2,}", " ", raw_text)
-                lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-                cleaned_lines = []
-                skip_idx = -1
-                for i, line in enumerate(lines):
-                    if i <= skip_idx:
-                        continue
-                    if re.search(r"(_\w+|\.pdf|\.md)\b", line, re.IGNORECASE):
-                        continue
-                    if re.match(r"^\d+\.$", line) and i + 1 < len(lines):
-                        cleaned_lines.append(f"{line} {lines[i+1]}")
-                        skip_idx = i + 1
-                        continue
-                    cleaned_lines.append(line)
-                content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
-                content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
+                from .agent_graph import _reflow_document_text
+                content_body = _reflow_document_text(raw_text)
+                content_snippet = content_body if len(content_body) <= 1200 else content_body[:1197] + "..."
                 is_internal_guide = bool(
                     re.search(
                         r"(jangan mengarang|contoh sapaan|panduan menanggapi|chatbot eaics|status yang disarankan)",

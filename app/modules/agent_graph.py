@@ -115,8 +115,9 @@ def triage_node(state: AgentState) -> dict[str, Any]:
         if c_row and c_row.customer_id:
             al = "AL2"
 
-    # 3. Intent classification
+    # 3. Intent classification & Context Tracking (TRD §8.2)
     cls = IntentSvc.classify(text, conv_id, corr)
+    IntentSvc.update_context(conv_id, text, cls)
 
     try:
         from .models_a import IntentRow as _IR
@@ -160,7 +161,7 @@ def route_after_triage(state: AgentState) -> str:
     decision = state.get("decision", "ACT")
 
     # Mandatory handoff (human requested or safety flag triggered)
-    if decision == "HUMAN" or cls.get("safety_flag"):
+    if decision in ("HUMAN", "HANDOFF") or cls.get("safety_flag"):
         return "handoff_node"
 
     # Clarification required
@@ -172,11 +173,45 @@ def route_after_triage(state: AgentState) -> str:
         return "greeting_node"
 
     # Transaction / action tool execution
-    if cls.get("category") == "ACTION" and state.get("tool_name"):
+    if state.get("tool_name"):
         return "tool_node"
 
     # Knowledge retrieval (default for inquiries)
     return "rag_node"
+
+
+def _format_clarification_question(intent_code: str, text: str = "") -> str:
+    """Format human-like, polite clarifying questions per TRD §8.1 F2 contract."""
+    clarification_map = {
+        "REQ_CARD_BLOCK": (
+            "Apakah Anda ingin mengajukan pemblokiran kartu ATM/Debit Anda saat ini, "
+            "atau Anda memerlukan bantuan penggantian kartu baru?"
+        ),
+        "REQ_CARD_REPLACEMENT": (
+            "Apakah Anda ingin mengajukan penggantian kartu ATM/Debit baru, "
+            "atau ingin memeriksa status kartu yang telah Anda miliki?"
+        ),
+        "INFO_ACCOUNT_BALANCE": (
+            "Apakah Anda ingin memeriksa sisa saldo rekening Anda saat ini, "
+            "atau ingin melihat mutasi dan riwayat transaksi?"
+        ),
+        "INFO_TRANSACTION_HISTORY": (
+            "Apakah Anda ingin memeriksa riwayat transaksi terbaru, "
+            "atau ingin mencari transaksi tertentu berdasarkan nomor referensi?"
+        ),
+        "CMP_TRANSACTION_DISPUTE": (
+            "Apakah Anda ingin melaporkan kendala/sanggahan pada suatu transaksi, "
+            "atau ingin memeriksa status laporan keluhan sebelumnya?"
+        ),
+        "INFO_PRODUCT_POLICY": (
+            "Bisa tolong perjelas informasi layanan yang Anda butuhkan? "
+            "Kami dapat membantu menjelaskan produk cloud server, basis data, atau jam operasional layanan."
+        ),
+    }
+    return clarification_map.get(
+        intent_code,
+        "Mohon maaf, agar kami dapat membantu dengan tepat, apakah kebutuhan Anda terkait informasi layanan umum, bantuan transaksi akun, atau ingin berbicara langsung dengan petugas?"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +221,15 @@ def clarify_node(state: AgentState) -> dict[str, Any]:
     db: Session = state["db"]
     conv_id = state["conv_id"]
     cls = state["intent"]
-    reply = _options(cls["intent_code"])
+    text = state.get("text", "")
+
+    # TRD §8.2 line 10: Cap at 2 clarification attempts, then mandatory handoff
+    ctx = IntentSvc.get_context(conv_id)
+    clar_count = ctx.get("clarification_count", 0)
+    if clar_count >= 2:
+        return handoff_node(state)
+
+    reply = _format_clarification_question(cls.get("intent_code", ""), text)
     ConvSvc.append_outbound(db, conv_id, reply)
     return {"reply": reply, "handoff": False, "reason": "CLARIFY"}
 
@@ -219,10 +262,23 @@ def tool_node(state: AgentState) -> dict[str, Any]:
     cls = state["intent"]
 
     # 1. Policy & Assurance check via Tool Gateway
-    dec = Gw.evaluate(tool, al, {"tenant_id": tenant_id})
-    if not dec["permitted"]:
+    actor = state.get("actor", "AI_AGENT")
+    try:
+        dec = Gw.evaluate(tool, args, al, {"actor": actor, "tenant_id": tenant_id}, corr, conv_id)
+    except Exception:
+        queued = _queue_handoff(db, conv_id, "POLICY_DENIED", corr, tenant_id, cls)
+        reply = "Saya belum dapat melakukan tindakan ini. " + _handoff_reply(queued.get("state", "UNAVAILABLE"))
+        ConvSvc.append_outbound(db, conv_id, reply)
+        return {"reply": reply, "handoff": True, "reason": "POLICY_DENIED"}
+
+    if dec.get("decision") == "STEP_UP_REQUIRED":
+        try:
+            ConvSvc.transition(db, conv_id, "AWAITING_AUTH", "stepup",
+                                {"actor_type": "AI_AGENT", "actor_id": "orchestrator"}, corr)
+        except Exception:
+            pass
         reply = (
-            "Untuk memproses permintaan transaksi atau informasi rekening Anda, "
+            "Untuk memproses permintaan transaksi atau informasi rekening Anda secara aman, "
             "silakan masuk (*login*) terlebih dahulu ke akun layanan terdaftar Anda."
         )
         ConvSvc.append_outbound(db, conv_id, reply)
@@ -324,6 +380,84 @@ def route_after_rag(state: AgentState) -> str:
     return "llm_node"
 
 
+def _reflow_document_text(raw_text: str) -> str:
+    """Reflow PDF and extracted document chunks into clean, structured paragraphs."""
+    if not raw_text:
+        return ""
+    text = raw_text.replace("\t", " ")
+    text = re.sub(r"[ ]{2,}", " ", text)
+    raw_lines = [l.strip() for l in text.splitlines() if l.strip()]
+    lines = []
+    for line in raw_lines:
+        if re.search(r"(_\w+|\.pdf|\.md)\b", line, re.IGNORECASE) and not re.search(r"\b(visi|misi|tentang|layanan|produk)\b", line, re.IGNORECASE):
+            continue
+        if re.match(r"^(JUDUL|KATEGORI|VERSI|STATUS YANG DISARANKAN|TUJUAN)\s*:", line, re.IGNORECASE):
+            continue
+        lines.append(line)
+    if not lines:
+        return raw_text
+
+    is_list_item = lambda l: bool(re.match(r"^(\d+[\.\)]|[-*•–—]|[a-zA-Z][\.\)])\s+", l))
+    is_list_marker_only = lambda l: bool(re.match(r"^(\d+[\.\)]|[-*•–—]|[a-zA-Z][\.\)])$", l))
+    is_header = lambda l: (
+        not is_list_item(l) and not is_list_marker_only(l) and
+        len(l) <= 55 and (
+            re.match(r"^(Tentang Kami|Visi|Misi|Profil Perusahaan|Sejarah Singkat|Layanan Utama|Fitur Utama|Paket Layanan|Harga & Spesifikasi|Kontak|Jam Operasional|Catatan|Ketentuan|Syarat & Ketentuan|SLA|Daftar Produk)\b", l, re.IGNORECASE) or
+            l.endswith(":") or
+            " — " in l
+        )
+    )
+
+    merged_lines = []
+    idx = 0
+    while idx < len(lines):
+        cur = lines[idx]
+        if is_list_marker_only(cur) and idx + 1 < len(lines):
+            merged_lines.append(f"{cur} {lines[idx+1]}")
+            idx += 2
+        elif re.match(r"^\d{4}$", cur) and idx + 1 < len(lines):
+            next_l = lines[idx + 1]
+            if next_l.startswith(("—", "-", "–")):
+                merged_lines.append(f"• {cur} {next_l}")
+            else:
+                merged_lines.append(f"• {cur}: {next_l}")
+            idx += 2
+        else:
+            merged_lines.append(cur)
+            idx += 1
+
+    blocks = []
+    current_p = []
+    def flush_p():
+        nonlocal current_p
+        if current_p:
+            blocks.append(" ".join(current_p))
+            current_p = []
+
+    for line in merged_lines:
+        if is_header(line):
+            flush_p()
+            hdr = line if line.endswith(":") or line.endswith("—") or " — " in line else f"{line}:"
+            blocks.append(f"### {hdr}")
+        elif is_list_item(line):
+            flush_p()
+            blocks.append(line)
+        else:
+            current_p.append(line)
+    flush_p()
+
+    formatted_output = []
+    for b in blocks:
+        if b.startswith("### "):
+            formatted_output.append(f"\n{b[4:]}")
+        elif is_list_item(b):
+            formatted_output.append(b)
+        else:
+            formatted_output.append(f"{b}\n")
+    result = "\n".join(formatted_output).strip()
+    return re.sub(r"\n{3,}", "\n\n", result)
+
+
 # ---------------------------------------------------------------------------
 # Node 6: LLM Generation & Grounding Node
 # ---------------------------------------------------------------------------
@@ -395,29 +529,8 @@ def llm_node(state: AgentState) -> dict[str, Any]:
         # Extractive fallback: sajikan kutipan dokumen faktual yang sudah dirapikan jika LLM provider gagal/stub
         raw_text = (source_inputs[0]["text"] or "").strip() if source_inputs else ""
         if raw_text:
-            # Ganti karakter tab dengan spasi dan normalkan spasi ganda
-            raw_text = raw_text.replace("\t", " ")
-            raw_text = re.sub(r"[ ]{2,}", " ", raw_text)
-
-            # Bersihkan metadata/nama file mentah di baris awal (misal: "CloudNova Teknologi - 02_products_services")
-            lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-            cleaned_lines = []
-            skip_idx = -1
-            for i, line in enumerate(lines):
-                if i <= skip_idx:
-                    continue
-                # Abaikan baris kode file seperti "02_products_services" atau header internal file
-                if re.search(r"(_\w+|\.pdf|\.md)\b", line, re.IGNORECASE):
-                    continue
-                # Rapikan nomor daftar yang terpisah baris (misal "1." lalu baris baru "Teks...")
-                if re.match(r"^\d+\.$", line) and i + 1 < len(lines):
-                    cleaned_lines.append(f"{line} {lines[i+1]}")
-                    skip_idx = i + 1
-                    continue
-                cleaned_lines.append(line)
-
-            content_body = "\n".join(cleaned_lines) if cleaned_lines else raw_text
-            content_snippet = content_body if len(content_body) <= 1100 else content_body[:1097] + "..."
+            content_body = _reflow_document_text(raw_text)
+            content_snippet = content_body if len(content_body) <= 1200 else content_body[:1197] + "..."
 
             # Guardrail anti-leak: Cegah dokumen panduan internal / rule bot terbongkar ke customer
             is_internal_guide = bool(

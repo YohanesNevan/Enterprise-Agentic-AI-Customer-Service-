@@ -77,12 +77,17 @@ def _info_request_phrase(t: str) -> bool:
 def _human_agent_requested(text: str) -> bool:
     import re
     t = (text or "").casefold()
+    target_human = r"(?:petugas|manusia|cs\b|customer\s+service|staf|staff|operator|agen\b|orang\s+asli|orang\s+langsung)"
+    verb_contact = r"(?:berbicara|bicara|merbiacara|berbincang|ngobrol|terhubung|sambung|sambungkan|hubungkan|menghubungi|dialihkan|alihkan|pindah|transfer)"
+    want_words = r"(?:butuh|minta|ingin|mau|tolong|mohon|bisa)"
     patterns = (
-        r"\b(?:bicara|ngobrol|terhubung|sambung|sambungkan|hubungkan|berbicara)\s+(?:ke\s+|dengan\s+|sama\s+)?(?:petugas|manusia|cs|customer service|staf|staff|operator|agen)\b",
-        r"\b(?:butuh|minta|ingin|mau)\s+(?:bantuan\s+)?(?:petugas|manusia|cs|customer service|staf|staff|operator|agen)\b",
-        r"\b(?:petugas|manusia|customer service|operator)\s+(?:saja|asli|langsung)\b",
-        r"\btransfer\s+(?:ke\s+)?(?:manusia|petugas|operator|cs)\b",
-        r"\bbicara\s+langsung\b",
+        rf"\b{verb_contact}\s+(?:ke\s+|dengan\s+|sama\s+)?{target_human}\b",
+        rf"\b{want_words}\s+(?:bantuan\s+|bicara\s+dengan\s+|berbicara\s+dengan\s+|merbiacara\s+dengan\s+)?{target_human}\b",
+        rf"\b{target_human}\s+(?:saja|asli|langsung)\b",
+        rf"\btransfer\s+(?:ke\s+)?{target_human}\b",
+        rf"\b(?:berbicara|bicara|merbiacara)\s+langsung\b",
+        rf"\b{want_words}\s+.*{target_human}\b",
+        rf"\b{verb_contact}\s+.*{target_human}\b",
     )
     return any(re.search(p, t) for p in patterns)
 
@@ -166,7 +171,22 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
     is_dispute = any(re.search(p, t, re.IGNORECASE) for p in dispute_patterns) or any(
         s in t for s in ("gagal transfer", "transaksi gagal", "salah debet", "saldo kepotong", "saldo berkurang", "saldo terpotong", "tidak masuk")
     )
-    if human_action:
+    direct_actions = {
+        "blokir": ("REQ_CARD_BLOCK", 0.90),
+        "blokir kartu": ("REQ_CARD_BLOCK", 0.95),
+        "kartu hilang": ("REQ_CARD_BLOCK", 0.90),
+        "ganti kartu": ("REQ_CARD_REPLACEMENT", 0.90),
+        "penggantian kartu": ("REQ_CARD_REPLACEMENT", 0.90),
+        "cek saldo": ("INFO_ACCOUNT_BALANCE", 0.90),
+        "lihat saldo": ("INFO_ACCOUNT_BALANCE", 0.90),
+        "saldo": ("INFO_ACCOUNT_BALANCE", 0.85),
+        "mutasi": ("INFO_TRANSACTION_HISTORY", 0.85),
+        "riwayat transaksi": ("INFO_TRANSACTION_HISTORY", 0.90),
+    }
+    clean_t = t.rstrip("?.!")
+    if clean_t in direct_actions:
+        top, top_c, second_c = direct_actions[clean_t][0], direct_actions[clean_t][1], 0.0
+    elif human_action:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.95, 0.0
     elif is_dispute:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.90, 0.0

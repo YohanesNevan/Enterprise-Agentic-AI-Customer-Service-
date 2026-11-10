@@ -26,6 +26,14 @@ Complete and verify the customer conversation journey; production identity remai
 - Started Vite at `http://127.0.0.1:5173/`; local HTTP GET returned 200 and the application title. This is a launch/HTTP smoke check only; no browser rendering was verified.
 - Implemented LangGraph StateGraph agentic decision loop in `app/modules/agent_graph.py` with TriageNode, ClarifyNode, GreetingNode, ToolNode, RAGNode, LLMNode, and HandoffNode. Integrated seamlessly into `orchestrator.run_turn` with automated test suite in `tests/test_agent_graph.py` (4/4 tests passed).
 - Completed Unit 06 and Unit 07: Implemented `POST /v1/customer/complaints` and `GET /v1/customer/complaints` in `app/modules/routes_a.py` with strict tenant and customer-owner isolation and SLA calculation. Upgraded customer portal UI (`CustomerRequest` and `CustomerTrack` in `web-workspace/src/App.jsx`) with dual-mode official complaint filing, category selection, confirmation cards, SLA target tracking, and progress status badges. Verified with `tests/test_customer_complaints.py` (2/2 passed) and frontend Vite production build (33 modules transformed).
+- Completed Agentic AI Transformation per FRD, TRD §8/§16, and Mitra Slide Deck (V-TEKI & UKDW):
+  1. LangGraph StateGraph Decision Loop: Fixed intent routing in `agent_graph.py` to handle both `HUMAN` and `HANDOFF` decisions and route action tools via `tool_node`.
+  2. Context & Clarification (TRD §8.1/8.2): Added conversational clarification formatting and enforced mandatory handoff after 2 clarification attempts.
+  3. Knowledge Base Hygiene: Filtered internal SOP/prompt files (`05_ALIH_TANGAN_CUSTOMER_SERVICE.txt`, `06_CARA_KERJA_CHATBOT_DAN_SUMBER_JAWABAN.txt`) in `app/modules/knowledge.py` to prevent prompt leakage.
+  4. Tool Execution & Step-up: Integrated `Gw.evaluate` in `tool_node` with assurance level enforcement (AL0 prompts login, AL2 executes autonomous banking/service actions).
+  5. Human Handoff Context Package (Mitra Slide 20 & TRD §16.4): Connected `HandoffSvc.build_package` to assemble customer summary, recent turns, narrative, and intent history before queueing.
+  6. Gemini LLM Provider: Configured `gemini-3-flash-preview` with 18s timeout and automated sentence claim mapping in `gemini_provider.py`.
+  7. Verified 5 core scenarios (Scenarios A through E) and 100% test suite pass (`test_agent_graph.py`, `test_customer_complaints.py`).
 
 ## Current status
 

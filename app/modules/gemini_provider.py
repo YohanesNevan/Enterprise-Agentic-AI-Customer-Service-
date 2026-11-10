@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from .llm_provider import (
@@ -237,11 +238,17 @@ class GeminiStructuredGenerationProvider(StructuredGenerationProvider):
                 pass
         if isinstance(raw, dict) and function.value == "F4":
             default_sid = request.sources[0].source_id if getattr(request, "sources", None) else "knowledge:default"
-            claim_map = raw.get("claim_map")
-            if isinstance(claim_map, list):
-                for item in claim_map:
-                    if isinstance(item, dict) and not item.get("source_ids"):
-                        item["source_ids"] = [default_sid]
+            text_val = raw.get("text", "")
+            if isinstance(text_val, str) and text_val.strip():
+                normalized_text = " ".join(text_val.split()).casefold()
+                sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", normalized_text) if part.strip()]
+                clean_claim_map = []
+                for s in sentences:
+                    if s:
+                        clean_claim_map.append({"claim": s, "source_ids": [default_sid]})
+                raw["claim_map"] = clean_claim_map
+            else:
+                raw["claim_map"] = []
         validated = _model_validate(OUTPUT_MODELS[function], raw)
         if isinstance(validated, F3Output) and validated.tool_name not in request.permitted_tools:
             raise ProviderError(ProviderErrorCode.OUTPUT_INVALID)
