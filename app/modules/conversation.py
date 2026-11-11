@@ -45,7 +45,8 @@ def _session(db: Session, conv_id: str, channel: str) -> ChannelSessionRow:
 def ingest(db: Session, channel: str, from_handle: str, text: str,
            provider_message_id: str | None = None, subject: str | None = None,
            ctx: dict | None = None, corr: str = "COR-?", tenant: str = "TNT-TEST",
-           claimed_customer_id: str | None = None, conversation_id: str | None = None) -> dict:
+           claimed_customer_id: str | None = None, conversation_id: str | None = None,
+           force_new: bool = False) -> dict:
     """FR-CONV-001: normalisasi -> resolusi identitas -> continuity/reopen -> append."""
     ctx = ctx or {"actor_type": "SYSTEM", "actor_id": "channel-adapter"}
     now = _now()
@@ -78,7 +79,7 @@ def ingest(db: Session, channel: str, from_handle: str, text: str,
         # resolusi identitas: handle email cocok ganda -> null disimulasikan via claimed
         customer_id = claimed_customer_id
     # continuity: cari percakapan terbuka milik customer dalam 72h (BR-CONV-01)
-    if conv is None and customer_id:
+    if conv is None and customer_id and not force_new:
         window = now - datetime.timedelta(hours=CONTINUITY_H)
         conv = (db.query(ConversationRow)
                 .filter(ConversationRow.tenant_id == tenant,
@@ -86,7 +87,7 @@ def ingest(db: Session, channel: str, from_handle: str, text: str,
                         ConversationRow.last_activity_at >= window,
                         ConversationRow.status.notin_(["CLOSED", "ABANDONED"]))
                 .order_by(ConversationRow.last_activity_at.desc()).first())
-    if conv is None and customer_id:
+    if conv is None and customer_id and not force_new:
         # PR-01: reopen 7 hari sebelum continuity — cocok sederhana: percakapan CLOSED < 7d
         window_r = now - datetime.timedelta(days=REOPEN_D)
         closed = (db.query(ConversationRow)

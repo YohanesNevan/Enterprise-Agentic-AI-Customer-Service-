@@ -261,3 +261,35 @@ def test_handoff_copy_distinguishes_queued_from_agent_acceptance():
     accepted = _handoff_reply("ACCEPTED")
     assert "telah menerima" in accepted
     assert "masuk antrean" not in accepted
+
+
+def test_customer_chat_force_new_creates_distinct_conversation():
+    headers_base = auth_headers("customer", "customer-new-1")
+    first = client.post(
+        "/v1/chat/messages",
+        json={"text": "halo"},
+        headers={**headers_base, "Idempotency-Key": "force-new-test-key-0001"},
+    )
+    assert first.status_code == 200, first.text
+    cid1 = first.json()["conversation_id"]
+
+    # Without force_new, 72h continuity reuses cid1
+    reused = client.post(
+        "/v1/chat/messages",
+        json={"text": "halo lagi"},
+        headers={**headers_base, "Idempotency-Key": "force-new-test-key-0002"},
+    )
+    assert reused.status_code == 200, reused.text
+    assert reused.json()["conversation_id"] == cid1
+
+    # With force_new=True, creates a distinct conversation
+    fresh = client.post(
+        "/v1/chat/messages",
+        json={"text": "Saya ingin berbicara dengan petugas", "force_new": True},
+        headers={**headers_base, "Idempotency-Key": "force-new-test-key-0003"},
+    )
+    assert fresh.status_code == 200, fresh.text
+    cid2 = fresh.json()["conversation_id"]
+    assert cid2 != cid1
+    assert fresh.json().get("handoff") is True
+    assert fresh.json().get("handoff_status") == "QUEUED"

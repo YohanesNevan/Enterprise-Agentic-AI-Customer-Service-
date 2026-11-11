@@ -60,6 +60,7 @@ def register(app):
         text: str = Field(min_length=1, max_length=4000)
         conversation_id: str | None = Field(default=None, min_length=1, max_length=30)
         channel: str = "WEB_CHAT"
+        force_new: bool = False
 
     def dev_auth_enabled():
         enabled = os.getenv("DEV_CUSTOMER_AUTH_ENABLED", "").lower() == "true"
@@ -311,7 +312,7 @@ def register(app):
                     prior = db.query(CustomerRequestRow).filter_by(request_id=request_id).first()
                     if prior and prior.request_hash == fingerprint and prior.state == "COMPLETE": return prior.response
                     raise AppError("E_CONFLICT", "request is already being processed", customer_message_id="CONV.REQUEST_IN_PROGRESS")
-                body = {"text": parsed.text, "channel": parsed.channel, "conversation_id": parsed.conversation_id}
+                body = {"text": parsed.text, "channel": parsed.channel, "conversation_id": parsed.conversation_id, "force_new": parsed.force_new}
             conv_id = body.get("conversation_id")
             actor_handle = ctx["actor_id"] if ctx["role"] == "customer" else body.get("from_handle", "anon")
             if not conv_id:
@@ -320,7 +321,8 @@ def register(app):
                                    body.get("text", ""), body.get("provider_message_id"),
                                    None, ctx, request.state.correlation_id,
                                    tenant=ctx["tenant_id"],
-                                   claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")))
+                                   claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")),
+                                   force_new=bool(body.get("force_new")))
                 conv_id = r["conversation_id"]
             else:
                 # append inbound manual

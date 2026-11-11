@@ -1,61 +1,94 @@
 INFO:     Will watch for changes in these directories: ['G:\\CapstoneProject_file\\CapstoneProjec_v3_github\\Enterprise-Agentic-AI-Customer-Service-']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [11208] using WatchFiles
+INFO:     Started reloader process [17348] using WatchFiles
 runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
-INFO:     Started server process [12000]
+INFO:     Started server process [15892]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
-WARNING:  WatchFiles detected changes in 'app\modules\queue.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [12000]
-runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
-INFO:     Started server process [21696]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'app\main.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [21696]
-runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
-INFO:     Started server process [16844]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'tests\test_workspace_read_model.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [16844]
-WARNING:  WatchFiles detected changes in 'tests\test_workspace_read_model.py'. Reloading...
-Process SpawnProcess-4:
-Traceback (most recent call last):
-  File "C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\multiprocessing\process.py", line 314, in _bootstrap
-    self.run()
-  File "C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\multiprocessing\process.py", line 108, in run
-    self._target(*self._args, **self._kwargs)
-  File "C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\site-packages\uvicorn\_subprocess.py", line 73, in subprocess_started
-    sys.stdin = os.fdopen(stdin_fileno)  # pragma: full coverage
-  File "C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\os.py", line 1029, in fdopen
-    return io.open(fd, mode, buffering, encoding, *args, **kwargs)
-  File "C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\codecs.py", line 309, in __init__
-    def __init__(self, errors='strict'):
-KeyboardInterrupt
-runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
-INFO:     Started server process [15144]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'tests\auth_helpers.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [15144]
-runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
-INFO:     Started server process [5116]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'tests\auth_helpers.py'. Reloading...
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=2 results=0 article_results=0 document_results=0
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-WN2KSNK76VY5BCVZ9GNG0EEWV0 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=1 results=0 article_results=0 document_results=0
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-GFBSWQ2PJ2XP42M8C0K4B5MAH8 intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=1 results=1 article_results=0 document_results=1
+gemini_generation_failed function=F4 provider_error_code=TIMEOUT http_status=504 rpc_status=DEADLINE_EXCEEDED
+gemini_generation_failure_reason reason=TIMEOUT
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY error=TIMEOUT
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-TVT869VD70EVJ9C8ME840W86ZX intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=1 handoff_decision=NOT_REQUIRED
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-D9WFSPFX51NVD5ZB9V0B71JVFR intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=INTENT_REQUIRES_HANDOFF retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-DF4QQ0JY65TBQVNYBNGD4QKGM1 intent=CMP_SERVICE_FAILURE decision=CLARIFY routing_reason=CLASSIFIED_INTENT retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-R1QJXF1312FN434GK02WJ5T9B0 intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-C5KCP1HFCDKVWRHXMMN0HVBHNP correlation_id=COR-4P5S45V254E9VV4AYVRD2G3TPK intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=QUEUED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=4 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=TIMEOUT http_status=504 rpc_status=DEADLINE_EXCEEDED
+gemini_generation_failure_reason reason=TIMEOUT
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY error=TIMEOUT
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-RXSVR10PVF3PMBRQF5WZHCA8MV intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-8DDYFR738T0MJVNZWFZK594YZ7 intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=INTENT_REQUIRES_HANDOFF retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=4 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=TIMEOUT http_status=504 rpc_status=DEADLINE_EXCEEDED
+gemini_generation_failure_reason reason=TIMEOUT
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY error=TIMEOUT
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-ZGEHA5EMT1J6GNJSVNR1KHYXYR intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-C5KCP1HFCDKVWRHXMMN0HVBHNP correlation_id=COR-H2TF1AHP6ZNKM1GF6KQ7HK2WAB intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=INTENT_REQUIRES_HANDOFF retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=QUEUED
 universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
 knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-C5KCP1HFCDKVWRHXMMN0HVBHNP correlation_id=COR-GJHGJFREY2PR2PF723EWXJEC66 intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_diag event=list environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 documents=10 statuses={"ready":10} outcome=ok
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=2 results=5 article_results=0 document_results=5
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-C5KCP1HFCDKVWRHXMMN0HVBHNP correlation_id=COR-2J1JBNZHN8HNKR1581DMKG9N28 intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=ACCEPTED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+WARNING:  WatchFiles detected changes in 'app\modules\conversation.py'. Reloading...
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+universal_login_succeeded type=customer tenant_id=tenant-dev-001 environment=development
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=AUTHENTICATION http_status=401 rpc_status=UNAUTHENTICATED
+gemini_generation_failure_reason reason=CREDENTIAL_REJECTED
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY error=AUTHENTICATION
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-TPF6AFHZ6JMP8GPRQDCRYXRWQY correlation_id=COR-A7557WZCHE5NCGBFH5X3SKFC9X intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [15892]
+WARNING:  WatchFiles detected changes in 'app\modules\routes_a.py', 'app\modules\conversation.py', 'tests\test_customer_conversations.py'. Reloading...
+C:\Users\Acer\AppData\Local\Programs\Python\Python310\lib\site-packages\uvicorn\server.py:77: RuntimeWarning: coroutine 'Server.serve' was never awaited
+  return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=gemini llm_model=gemini-3-flash-preview llm_timeout_ms=18000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=True
+INFO:     Started server process [20020]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-YYQRJEBJ9F0JHJESPM4RGVPXJ8 correlation_id=COR-RCF80C1PVK9JXTGQ4V9E92HBPP intent=OTHER_UNCLASSIFIED decision=HANDOFF routing_reason=CUSTOMER_REQUEST retrieval_outcome=HANDOFF retrieval_sources=0 handoff_decision=QUEUED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=AUTHENTICATION http_status=401 rpc_status=UNAUTHENTICATED
+gemini_generation_failure_reason reason=CREDENTIAL_REJECTED
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-KBSSFQTDNFPTADMCNWN0C05K35 error=AUTHENTICATION
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-KBSSFQTDNFPTADMCNWN0C05K35 correlation_id=COR-3GAS93NXAY7FWH2QVS9DRXH3XG intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+knowledge_retrieval environment=development database=postgresql+psycopg:8e840ec2496a tenant_id=tenant-dev-001 query_terms=5 results=5 article_results=0 document_results=5
+gemini_generation_failed function=F4 provider_error_code=AUTHENTICATION http_status=401 rpc_status=UNAUTHENTICATED
+gemini_generation_failure_reason reason=CREDENTIAL_REJECTED
+llm_answer_generation_failed tenant_id=tenant-dev-001 conv_id=CNV-KWT0V7A8JJ695NJV76CFBKWDKC error=AUTHENTICATION
+customer_chat_routing tenant_id=tenant-dev-001 conversation_id=CNV-KWT0V7A8JJ695NJV76CFBKWDKC correlation_id=COR-H0YWZ8DD66N079YHYYV4ATJ7RV intent=INFO_PRODUCT_POLICY decision=ACT routing_reason=INFORMATIONAL_INQUIRY retrieval_outcome=EXTRACTIVE_FALLBACK retrieval_sources=5 handoff_decision=NOT_REQUIRED
+universal_login_succeeded type=staff role=cs_agent tenant_id=tenant-dev-001 environment=development

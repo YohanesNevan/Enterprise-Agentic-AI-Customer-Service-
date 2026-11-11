@@ -446,7 +446,7 @@ function CustomerChat() {
     setConversationId(null)
     setMessages([])
     setText('')
-    setNotice(null)
+    setNotice('Sesi percakapan baru siap — kirim pesan untuk memulai obrolan baru.')
     setError(null)
     isNearBottomRef.current = true
     setShowScrollBottom(false)
@@ -520,7 +520,7 @@ function CustomerChat() {
     try {
       const result = await req('/v1/chat/messages', {
         method: 'POST',
-        body: { text: content, ...(conversationId ? { conversation_id: conversationId } : {}) },
+        body: { text: content, ...(conversationId ? { conversation_id: conversationId } : { force_new: true }) },
         headers: { 'Idempotency-Key': idempotencyKey }
       })
       if (!result.conversation_id) throw new ApiError(502, 'MISSING_CONVERSATION', 'Layanan tidak mengembalikan referensi percakapan.')
