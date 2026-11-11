@@ -488,6 +488,44 @@ async def ws_read_model(conv_id: str, ctx=Depends(require_perm("conversation.rea
         sla_ids = [c.case_id for c in cases] + [t.ticket_id for t in tickets]
         from .core.ids import short_reference
         sla = db.query(_models.SlaRecordRow).filter(_models.SlaRecordRow.object_id.in_(sla_ids)).all() if sla_ids else []
+        # Assemble Handoff Context Package (TRD §16.4 & Mitra Slide 20)
+        customer_msgs = [m.content for m in messages if m.author_type == "CUSTOMER" and m.content]
+        customer_problem = customer_msgs[0] if customer_msgs else "Tidak ada pesan keluhan yang tercatat."
+        last_customer_msg = customer_msgs[-1] if customer_msgs else ""
+        primary_intent = intents[-1] if intents else None
+
+        intent_code_str = primary_intent.intent_code if primary_intent else (conversation.intent_current or "OTHER_UNCLASSIFIED")
+        rec_action = "Lakukan verifikasi data pelanggan dan tanyakan rincian kendala lebih lanjut."
+        if "BLOCK" in intent_code_str:
+            rec_action = "Periksa status pemblokiran kartu pada sistem kartu. Tawarkan pembuatan kartu pengganti jika diperlukan."
+        elif "DISPUTE" in intent_code_str or "REFUND" in intent_code_str:
+            rec_action = "Periksa detail mutasi/transaksi yang disengketakan dan pastikan bukti bayar telah diverifikasi."
+        elif "BALANCE" in intent_code_str or "HISTORY" in intent_code_str:
+            rec_action = "Lakukan verifikasi identitas nasabah sebelum mengonfirmasi rincian saldo atau mutasi rekening."
+        elif "STATEMENT" in intent_code_str:
+            rec_action = "Konfirmasi alamat email terdaftar nasabah untuk pengiriman rekening koran resmi."
+        elif h and h.reason_code == "KNOWLEDGE_GAP":
+            rec_action = "Eskalasi akibat informasi di Knowledge Base belum lengkap. Jelaskan kebijakan resmi perusahaan kepada nasabah."
+
+        urgency_level = "HIGH" if (conversation.safety_flag or (h and h.severity == "CRITICAL")) else ("MEDIUM" if (h and h.severity == "HIGH") else "LOW")
+        sentiment_level = "NEGATIVE" if (conversation.safety_flag or ("DISPUTE" in intent_code_str or "BLOCK" in intent_code_str)) else "NEUTRAL"
+
+        handoff_pkg = {
+            "customer_id": conversation.customer_id or "ANONYMOUS",
+            "customer_name": conversation.customer_id or "Nasabah",
+            "intent_code": intent_code_str,
+            "confidence": primary_intent.confidence if primary_intent else 0.85,
+            "decision": primary_intent.decision if primary_intent else "HANDOFF",
+            "urgency": urgency_level,
+            "sentiment": sentiment_level,
+            "summary": customer_problem,
+            "last_message": last_customer_msg,
+            "reason": h.reason_code if h else "DIRECT_ASSISTANCE",
+            "tools_called": [t.tool_name for t in tool_calls],
+            "package_complete": h.package_complete if h else True,
+            "recommended_action": rec_action,
+        }
+
         return {"conversation_id": conv_id,
                 "conversation": {"status": conversation.status, "language": conversation.language,
                                  "intent_current": conversation.intent_current,
@@ -496,6 +534,7 @@ async def ws_read_model(conv_id: str, ctx=Depends(require_perm("conversation.rea
                 "handoff": {"handoff_id": h.handoff_id, "reason_code": h.reason_code, "priority_score": h.priority_score,
                             "severity": h.severity, "state": h.state,
                             "accepted_by": h.accepted_by} if h else None,
+                "handoff_package": handoff_pkg,
                 "cases": [{"case_id": c.case_id, "customer_reference": c.customer_reference, "status": c.status, "severity_confirmed": c.severity_confirmed, "category": c.category} for c in cases],
                 "tickets": [{"ticket_id": t.ticket_id, "customer_reference": short_reference("ticket", t.ticket_id), "status": t.status, "type": t.type, "priority": t.priority, "description": t.description} for t in tickets],
                 "messages": [{"message_id": m.message_id, "sequence_no": m.sequence_no, "direction": m.direction,

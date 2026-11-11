@@ -4,8 +4,10 @@ import time
 import uuid
 from jose import jwt
 
-def auth_headers(role="cs_agent", actor="agent-1", tenant="TNT-TEST", *, token_use=None, lifetime=3600, extra=None):
+def auth_headers(role="cs_agent", actor="agent-1", tenant="TNT-TEST", *, token_use=None, lifetime=None, extra=None):
     token_use = token_use or ("service" if role == "ai_agent" else "access")
+    if lifetime is None:
+        lifetime = 300 if token_use == "service" else 900
     now = int(time.time())
     claims = {"sub": actor, "iss": os.environ["JWT_ISSUER"], "aud": os.environ["JWT_AUDIENCE"],
               "iat": now, "exp": now + lifetime, "jti": str(uuid.uuid4()),

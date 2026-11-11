@@ -1,0 +1,67 @@
+[2m00.08.13[22m [31m[1m[vite][22m[39m [31mInternal server error: G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\src\App.jsx: Unexpected token (1461:2)
+
+[0m [90m 1459 |[31m
+ [90m 1460 |[31m [36mfunction[31m [33mAgentConversationActions[31m({ d[33m,[31m role[33m,[31m session[33m,[31m onRefresh }) {
+[31m[1m>[22m[31m[90m 1461 |[31m   [36mconst[31m [reply[33m,[31m setReply] [33m=[31m useState([32m''[31m)
+ [90m      |[31m   [31m[1m^[22m[31m
+ [90m 1462 |[31m   [36mconst[31m [busy[33m,[31m setBusy] [33m=[31m useState([32m''[31m)
+ [90m 1463 |[31m   [36mconst[31m [error[33m,[31m setError] [33m=[31m useState([36mnull[31m)
+ [90m 1464 |[31m   [36mconst[31m [notice[33m,[31m setNotice] [33m=[31m useState([32m''[31m)[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mG:/CapstoneProject_file/CapstoneProjec_v3_github/Enterprise-Agentic-AI-Customer-Service-/web-workspace/src/App.jsx[39m:1461:2
+[33m  1485|      }, 'Balasan tersimpan dan tampil pada transkrip.')
+  1486|    }
+  1487|    const accept = () => run('accept', () => req(`/v1/workspace/handoffs/${encodeURIComponent(d.handoff.handoff_id)}/accept`, { method: 'POST', body: {} }), 'Handoff diterima. Percakapan aktif ditangani petugas.')
+     |                                                                                ^
+  1488|    const resolve = () => run('resolve', () => req(`${path}/resolve`, { method: 'POST', body: {} }), 'Penanganan selesai dan menunggu konfirmasi customer.')
+  1489|    const createCase = (event) => {[39m
+      at constructor (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:369:19)
+      at JSXParserMixin.raise (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:6622:19)
+      at JSXParserMixin.unexpected (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:6642:16)
+      at JSXParserMixin.parseExprAtom (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11473:22)
+      at JSXParserMixin.parseExprAtom (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4782:20)
+      at JSXParserMixin.parseExprSubscripts (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11107:23)
+      at JSXParserMixin.parseUpdate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11092:21)
+      at JSXParserMixin.parseMaybeUnary (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11072:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10925:61)
+      at JSXParserMixin.parseExprOps (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10930:23)
+      at JSXParserMixin.parseMaybeConditional (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10907:23)
+      at JSXParserMixin.parseMaybeAssign (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10857:21)
+      at JSXParserMixin.parseExpressionBase (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10810:23)
+      at G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10806:39
+      at JSXParserMixin.allowInAnd (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12460:12)
+      at JSXParserMixin.parseExpression (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10806:17)
+      at JSXParserMixin.jsxParseExpressionContainer (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4650:31)
+      at JSXParserMixin.jsxParseElementAt (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4729:36)
+      at JSXParserMixin.jsxParseElement (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4767:17)
+      at JSXParserMixin.parseExprAtom (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4777:19)
+      at JSXParserMixin.parseExprSubscripts (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11107:23)
+      at JSXParserMixin.parseUpdate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11092:21)
+      at JSXParserMixin.parseMaybeUnary (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11072:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10925:61)
+      at JSXParserMixin.parseExprOps (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10930:23)
+      at JSXParserMixin.parseMaybeConditional (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10907:23)
+      at JSXParserMixin.parseMaybeAssign (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10857:21)
+      at G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10826:39
+      at JSXParserMixin.allowInAnd (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12460:12)
+      at JSXParserMixin.parseMaybeAssignAllowIn (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10826:17)
+      at JSXParserMixin.parseMaybeAssignAllowInOrVoidPattern (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12527:17)
+      at JSXParserMixin.parseParenAndDistinguishExpression (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11706:28)
+      at JSXParserMixin.parseExprAtom (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11362:23)
+      at JSXParserMixin.parseExprAtom (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:4782:20)
+      at JSXParserMixin.parseExprSubscripts (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11107:23)
+      at JSXParserMixin.parseUpdate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11092:21)
+      at JSXParserMixin.parseMaybeUnary (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:11072:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10925:61)
+      at JSXParserMixin.parseExprOps (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10930:23)
+      at JSXParserMixin.parseMaybeConditional (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10907:23)
+      at JSXParserMixin.parseMaybeAssign (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10857:21)
+      at JSXParserMixin.parseExpressionBase (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10810:23)
+      at G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10806:39
+      at JSXParserMixin.allowInAnd (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12455:16)
+      at JSXParserMixin.parseExpression (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:10806:17)
+      at JSXParserMixin.parseReturnStatement (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:13176:28)
+      at JSXParserMixin.parseStatementContent (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12832:21)
+      at JSXParserMixin.parseStatementLike (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12801:17)
+      at JSXParserMixin.parseStatementListItem (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:12781:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (G:\CapstoneProject_file\CapstoneProjec_v3_github\Enterprise-Agentic-AI-Customer-Service-\web-workspace\node_modules\@babel\parser\lib\index.js:13350:61)

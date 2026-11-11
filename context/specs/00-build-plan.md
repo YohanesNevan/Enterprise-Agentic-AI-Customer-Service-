@@ -1,4 +1,4 @@
-﻿# EAICS Improvement Build Plan
+# EAICS Improvement Build Plan
 
 ## Planning basis
 
@@ -102,6 +102,8 @@ Authorized incremental slice: `context/specs/07-customer-request-tracking-accoun
 - **Acceptance criteria:** Agent can accept and act on authorized work; context is coherent and provenance clear; SLA and handoff history visible; no customer/internal data leakage; action state persists and reports errors.
 - **Verification:** API role tests and agent browser workflow.
 - **Risks/open decisions:** Conversation state transitions, note visibility, assignment rules, and summary generation criteria need traceability.
+
+Completed implementation: `context/specs/08-agent-workspace-read-model-queue.md`. Assembled full `handoff_package` (Mitra Slide 20 / TRD §16.4) in `GET /v1/workspace/conversations/{conv_id}`, enriched `GET /v1/workspace/queue` with intent, summary snippets, and completeness badges. Added dedicated **Handoff Context Package Card** and enhanced Queue table in `web-workspace/src/App.jsx`. Verified with `tests/test_workspace_read_model.py` and regression test suite (15/15 passed).
 
 ## Unit 09 — Supervisor and complaint officer operations
 

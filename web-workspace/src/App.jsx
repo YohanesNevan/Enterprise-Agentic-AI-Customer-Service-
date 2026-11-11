@@ -1216,16 +1216,25 @@ function Queue({ role }) {
           </div>
           <div className="mt" style={{ overflowX: 'auto' }}>
             <table className="tbl">
-              <thead><tr><th>Percakapan</th><th>Alasan Eskalasi</th><th>Severity</th><th>Skor Prioritas</th><th>Waktu Tunggu</th><th>Queue / Status Paket</th><th>Tindakan</th></tr></thead>
+              <thead><tr><th>Percakapan</th><th>Alasan & Intensi</th><th>Severity</th><th>Skor Prioritas</th><th>Waktu Tunggu</th><th>Queue / Status Paket</th><th>Tindakan</th></tr></thead>
               <tbody>
                 {items.map((q) => (
                   <tr key={q.handoff_id} className={`clickable${sel?.handoff_id === q.handoff_id ? ' sel' : ''}`} onClick={() => { setSel(q); setT((o) => ({ ...o })) }}>
                     <td><b>{q.conversation_id}</b><br /><span style={{ fontSize: 11, color: '#64748b' }}>{q.handoff_id}</span></td>
-                    <td>{q.reason_code}</td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{q.reason_code}</div>
+                      {q.intent_code && <div style={{ fontSize: 11, color: '#2563eb' }}>{q.intent_code}</div>}
+                      {q.summary_snippet && <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>"{q.summary_snippet}"</div>}
+                    </td>
                     <td><Sev v={q.severity} /></td>
                     <td><b>{q.priority_score}</b></td>
                     <td>{q.wait_s}s</td>
-                    <td>{q.queue_id}{!q.package_complete && <> <span className="badge b-amber">PARSIAL</span></>}</td>
+                    <td>
+                      {q.queue_id}
+                      <div style={{ marginTop: 2 }}>
+                        {q.package_complete ? <span className="badge b-green" style={{ fontSize: 10 }}>PAKET LENGKAP</span> : <span className="badge b-amber" style={{ fontSize: 10 }}>PARSIAL</span>}
+                      </div>
+                    </td>
                     <td><button className="btn sm primary" onClick={(ev) => { ev.stopPropagation(); accept(q) }}>Terima Handoff</button></td>
                   </tr>
                 ))}
@@ -1315,7 +1324,65 @@ function Conv({ role, session }) {
       )}
       {loading && <Card title="Memuat percakapan"><p role="status">Mengambil transkrip dan informasi penanganan...</p></Card>}
       {d && (
-        <div className="grid g2 mt">
+        <>
+          {d.handoff_package && (
+            <Card title="📦 Paket Konteks Eskalasi Petugas (Handoff Context Package)" sub="Ringkasan otomatis dari Agentic AI untuk panduan petugas (Slide 20 Panduan Mitra)" wide>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    👤 Profil & Status Nasabah
+                  </h4>
+                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><strong>ID Nasabah:</strong> <code>{d.handoff_package.customer_id}</code></div>
+                    <div><strong>Urgensi Masalah:</strong> <span className={`badge ${d.handoff_package.urgency === 'HIGH' ? 'b-red' : d.handoff_package.urgency === 'MEDIUM' ? 'b-amber' : 'b-blue'}`}>{d.handoff_package.urgency}</span></div>
+                    <div><strong>Sentimen:</strong> <span className={`badge ${d.handoff_package.sentiment === 'NEGATIVE' ? 'b-red' : 'b-green'}`}>{d.handoff_package.sentiment}</span></div>
+                    <div><strong>Alasan Eskalasi:</strong> <code>{d.handoff_package.reason}</code></div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: '14px' }}>
+                    🧠 Analisis & Kronologi Masalah (AI)
+                  </h4>
+                  <p style={{ margin: '0 0 8px', fontSize: '13px', lineHeight: 1.5, color: '#334155' }}>
+                    <strong>Keluhan Awal:</strong> "{d.handoff_package.summary}"
+                  </p>
+                  {d.handoff_package.last_message && d.handoff_package.last_message !== d.handoff_package.summary && (
+                    <p style={{ margin: '0 0 8px', fontSize: '12px', lineHeight: 1.4, color: '#64748b' }}>
+                      <strong>Pesan Terakhir:</strong> "{d.handoff_package.last_message}"
+                    </p>
+                  )}
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    <strong>Intensi Terdeteksi:</strong> <code>{d.handoff_package.intent_code}</code> ({Math.round((d.handoff_package.confidence || 0.85) * 100)}%)
+                  </div>
+                </div>
+
+                <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                  <h4 style={{ margin: '0 0 8px', color: '#1e40af', fontSize: '14px' }}>
+                    🛠️ Riwayat Tindakan AI (Tools)
+                  </h4>
+                  {d.handoff_package.tools_called?.length ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                      {d.handoff_package.tools_called.map((tool, idx) => (
+                        <span key={idx} className="badge b-blue" style={{ fontSize: '11px' }}>
+                          ✓ {tool}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>Tidak ada tools otomatis yang dijalankan.</div>
+                  )}
+                  <h4 style={{ margin: '8px 0 4px', color: '#1e40af', fontSize: '13px' }}>
+                    💡 Rekomendasi Tindakan untuk Petugas:
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#1e3a8a', fontWeight: 600 }}>
+                    {d.handoff_package.recommended_action}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+          <div className="grid g2 mt">
           <Card title={`Status Handoff • ${d.conversation_id}`} sub={d.conversation?.intent_current || 'Tingkat risiko dan eskalasi petugas'}>
             {d.handoff ? (
               <div className="kv">
@@ -1385,6 +1452,7 @@ function Conv({ role, session }) {
           </Card>
           <AgentConversationActions d={d} role={role} session={session} onRefresh={open} />
         </div>
+        </>
       )}
     </>
   )

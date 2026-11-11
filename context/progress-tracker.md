@@ -35,17 +35,24 @@ Complete and verify the customer conversation journey; production identity remai
   6. Gemini LLM Provider: Configured `gemini-3-flash-preview` with 18s timeout and automated sentence claim mapping in `gemini_provider.py`.
   7. Verified 5 core scenarios (Scenarios A through E) and 100% test suite pass (`test_agent_graph.py`, `test_customer_complaints.py`).
 
+- Completed Unit 08: Agent Workspace Read Model & Queue (`context/specs/08-agent-workspace-read-model-queue.md`):
+  1. Queue List Enrichment (`app/modules/queue.py`): Joined queue rows with `ConversationRow` and `MessageRow` to expose `customer_id`, `intent_code`, and `summary_snippet` with `package_complete` verification badges.
+  2. Workspace Read Model (`app/main.py` `GET /v1/workspace/conversations/{conv_id}`): Assembled full `handoff_package` per TRD §16.4 & Mitra Slide 20, including customer profile, problem analysis/chronology, tool execution history, urgency, sentiment, and actionable recommendations for human agents.
+  3. Frontend Staff Workspace UI (`web-workspace/src/App.jsx`): Rendered the rich **Handoff Context Package Card** with 3 distinct operational zones (Profil & Status, Analisis & Kronologi Masalah AI, Riwayat Tools & Rekomendasi Tindakan Petugas) and enhanced Queue table with intent badges and completeness indicators.
+  4. Verified Test Suites: Added `tests/test_workspace_read_model.py` (access control, handoff package schema, enriched queue items). Fixed test helper token lifetime alignment (900s for human tokens) in `tests/auth_helpers.py`. Full regression test suite passed 15/15 (100% pass) and Vite frontend built cleanly.
+
 ## Current status
 
 - Unit 03 completed and verified per `context/specs/03-role-navigation-shell.md`.
 - Unit 04 local customer login, API, UI integration and regression tests are implemented. Production identity and schema migration remain gated.
+- Unit 06 and Unit 07 customer complaints and tracking completed and verified.
+- Unit 08 Agent Workspace Read Model & Queue completed and verified.
 
 ## Next tasks
 
-1. Complete Unit 05 authenticated browser journey, keyboard and accessibility verification; responsive visual layouts were reviewed during the 2026-10-16 UI refresh.
-2. Implement Unit 06 complaint/ticket ownership APIs and a documented complaint-to-case flow.
-3. Implement Unit 08 full handoff context/read model and agent queue workflow; keep handoff package marked incomplete until verified.
-4. Integrate trusted production identity issuer/account provisioning before enabling production access.
+1. Unit 09: Staff Response & Conversation Wrap-up (CS Agent conversation handling, wrap-up classification, customer feedback collection).
+2. Unit 10: Multi-channel Ingestion Adapters (WhatsApp / Email / Webhook ingestion bridges).
+3. Unit 11: Case & Evidence Management Lifecycle (Adjudication, document verification, multi-department case escalation).
 
 ## Open questions
 

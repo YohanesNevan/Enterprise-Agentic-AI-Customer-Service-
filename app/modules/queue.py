@@ -53,11 +53,28 @@ def list_queue(db: Session, tenant_id: str, queue_id: str | None = None, agent_s
     # urut prioritas lalu waktu tunggu (FR-WS-002 AC1: Critical dulu)
     now = datetime.datetime.now(datetime.timezone.utc)
     out = []
+    from .models_a import ConversationRow, MessageRow
     for r in rows:
         qa = r.queued_at.replace(tzinfo=datetime.timezone.utc) if r.queued_at.tzinfo is None else r.queued_at
         wait_s = int((now - qa).total_seconds())
         live_score = score(r.severity, _sla_risk(db, r.conversation_id), wait_s / 60, r.vulnerability_flag)
+        
+        c_row = db.query(ConversationRow).filter_by(conversation_id=r.conversation_id).first()
+        last_msg = (
+            db.query(MessageRow)
+            .filter_by(conversation_id=r.conversation_id, direction="INBOUND")
+            .order_by(MessageRow.sequence_no.desc())
+            .first()
+        )
+        summary_snippet = ""
+        if last_msg and last_msg.content:
+            summary_snippet = (last_msg.content[:80] + "...") if len(last_msg.content) > 80 else last_msg.content
+        intent_code = c_row.intent_current if c_row and c_row.intent_current else r.reason_code
+
         out.append({"handoff_id": r.handoff_id, "conversation_id": r.conversation_id,
+                    "customer_id": c_row.customer_id if c_row else None,
+                    "intent_code": intent_code,
+                    "summary_snippet": summary_snippet,
                     "reason_code": r.reason_code, "priority_score": live_score,
                     "severity": r.severity, "queue_id": r.queue_id, "skill_tags": r.skill_tags,
                     "language": r.language, "wait_s": wait_s,
