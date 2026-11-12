@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EAICS - System Design Diagrams</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+      color: #38bdf8;
+    }
+    p.subtitle {
+      color: #94a3b8;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 36px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 12px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      background-color: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    button.btn-svg {
+      background-color: #059669;
+    }
+    button.btn-svg:hover {
+      background-color: #047857;
+    }
+    .diagram-container {
+      background-color: #090d16;
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;
+    }
+    .diagram-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Diagram Arsitektur & System Design EAICS</h1>
+    <p class="subtitle">Buka halaman ini di browser (Chrome / Edge / Firefox) dan klik tombol <strong>Unduh PNG</strong> atau <strong>Unduh SVG</strong> untuk menyimpan gambar diagram ke komputer Anda.</p>
+
+    <!-- Card 1: High Level Architecture -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">1. High-Level Modular Monolith Architecture</div>
+        <div class="btn-group">
+          <button class="btn-svg" onclick="downloadSVG('diag-arch', 'eaics-high-level-architecture.svg')">Unduh SVG</button>
+          <button onclick="downloadPNG('diag-arch', 'eaics-high-level-architecture.png')">Unduh PNG</button>
+        </div>
+      </div>
+      <div class="diagram-container">
+        <div class="mermaid" id="diag-arch">
+flowchart TD
+    subgraph Clients["Frontend Clients (React 18 + Vite 5 SPA)"]
+        CP["Customer Portal (/customer/chat, /customer/complaints)"]
+        AW["Agent Workspace (/agent/queue, /agent/conversations)"]
+    end
+
+    subgraph Gateway["API Gateway / Boundary (FastAPI :8000)"]
+        MW["Correlation & Security Middleware"]
+        RBAC["RBAC & Assurance Filter (AL0 - AL3)"]
+        Router["API Routers (/v1/chat, /v1/workspace, /v1/customer)"]
+    end
+
+    subgraph AgenticCore["Agentic AI Decision Engine (LangGraph StateGraph)"]
+        Triage["Triage Node (Intent & Sentiment)"]
+        RAG["RAG Node (Lexical + Vector Retrieval)"]
+        ToolNode["Tool Gateway (Core Banking Sim)"]
+        HandoffNode["Handoff & Queue Management"]
+        LLM["LLM Node (Gemini 2.5 / Fallback Provider)"]
+    end
+
+    subgraph DomainServices["Modular Monolith Domain Services"]
+        ConvSvc["Conversation Service (72h Continuity & Ingestion)"]
+        CaseSvc["Case & Complaint Service (Ticketing & SLA)"]
+        QueueSvc["Priority Queue & Handoff Service"]
+        AuditSvc["Append-only Audit & Hash Chain"]
+    end
+
+    subgraph Storage["Data Persistence & Infrastructure"]
+        PG[("PostgreSQL 16 + pgvector")]
+        Redis[("Redis 7 (Session & Token Revocation)")]
+        MinIO[("MinIO (Evidence Storage)")]
+    end
+
+    CP -->|HTTP / REST + Bearer Token| MW
+    AW -->|HTTP / REST + Staff JWT| MW
+    MW --> RBAC --> Router
+    Router --> ConvSvc
+    Router --> CaseSvc
+    Router --> QueueSvc
+    ConvSvc --> AgenticCore
+    AgenticCore --> Triage
+    Triage --> RAG
+    Triage --> ToolNode
+    Triage --> HandoffNode
+    RAG --> LLM
+    DomainServices --> PG
+    DomainServices --> Redis
+    DomainServices --> MinIO
+    DomainServices --> AuditSvc
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: LangGraph StateGraph -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">2. Agentic Workflow StateGraph (LangGraph)</div>
+        <div class="btn-group">
+          <button class="btn-svg" onclick="downloadSVG('diag-langgraph', 'eaics-langgraph-stategraph.svg')">Unduh SVG</button>
+          <button onclick="downloadPNG('diag-langgraph', 'eaics-langgraph-stategraph.png')">Unduh PNG</button>
+        </div>
+      </div>
+      <div class="diagram-container">
+        <div class="mermaid" id="diag-langgraph">
+stateDiagram-v2
+    [*] --> START
+    START --> triage_node: Pesan Masuk (AgentState)
+
+    state triage_node {
+        cek_degraded: Cek Mode Darurat
+        klasifikasi_intent: Intent & Urgensi
+        evaluasi_assurance: Cek Level Autentikasi (AL0-AL3)
+    }
+
+    triage_node --> greeting_node: Intent = GREETING
+    triage_node --> clarify_node: Pesan Ambigu / Kurang Konteks
+    triage_node --> handoff_node: Mandatory Handoff / Frustrasi / Permintaan Petugas
+    triage_node --> tool_node: Perlu Eksekusi Alat Perbankan
+    triage_node --> rag_node: Pertanyaan Kebijakan / Produk (FAQ)
+
+    state rag_node {
+        search_docs: Temukan Chunk Relevan (Tenant-scoped)
+        filter_metadata: Bersihkan Metadata Mentah
+    }
+
+    rag_node --> llm_node: Ditemukan Dokumen Relevan
+    rag_node --> handoff_node: Dokumen 0 / Retrieval Gagal
+
+    state tool_node {
+        validasi_stepup: Butuh OTP / Step-up Auth?
+        eksekusi_corebank: Panggil Tool Gateway
+    }
+
+    state llm_node {
+        grounding: Sintesis Jawaban dengan Sitasi Dokumen
+        guardrail: Filter Halusinasi & Format Manusiawi
+    }
+
+    greeting_node --> END
+    clarify_node --> END
+    tool_node --> END
+    handoff_node --> END
+    llm_node --> END
+    END --> [*]
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Database ERD -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">3. Skema Relasi Database (ERD)</div>
+        <div class="btn-group">
+          <button class="btn-svg" onclick="downloadSVG('diag-erd', 'eaics-database-erd.svg')">Unduh SVG</button>
+          <button onclick="downloadPNG('diag-erd', 'eaics-database-erd.png')">Unduh PNG</button>
+        </div>
+      </div>
+      <div class="diagram-container">
+        <div class="mermaid" id="diag-erd">
+erDiagram
+    TENANT ||--o{ CUSTOMER : owns
+    TENANT ||--o{ CONVERSATION : scopes
+    CUSTOMER ||--o{ CONVERSATION : initiates
+    CONVERSATION ||--o{ MESSAGE : contains
+    CONVERSATION ||--o{ HANDOFF_QUEUE : escalates_to
+    CONVERSATION ||--o{ CASE_TICKET : creates
+    CASE_TICKET ||--o{ SLA_TRACKER : tracks
+    TENANT ||--o{ KNOWLEDGE_DOC : owns
+
+    CONVERSATION {
+        string id PK "CNV-..."
+        string tenant_id FK
+        string customer_id FK
+        string status "ACTIVE / HANDOFF / CLOSED"
+        string channel "WEB_CHAT / WHATSAPP"
+        timestamp created_at
+        timestamp last_active_at
+    }
+
+    MESSAGE {
+        string id PK "MSG-..."
+        string conversation_id FK
+        string sender_type "CUSTOMER / AI_AGENT / STAFF"
+        string text
+        jsonb metadata "citations, tools, latency"
+        timestamp created_at
+    }
+
+    HANDOFF_QUEUE {
+        string id PK "QUE-..."
+        string conversation_id FK
+        string reason_code "CUSTOMER_REQUEST / FRUSTRATION"
+        string severity "LOW / MEDIUM / HIGH / CRITICAL"
+        float priority_score
+        string status "PENDING / ASSIGNED / RESOLVED"
+        jsonb handoff_package "ringkasan, riwayat, sentimen"
+    }
+
+    CASE_TICKET {
+        string id PK "TKT-..."
+        string conversation_id FK
+        string customer_id FK
+        string category "TRANSACTION_DISPUTE / SERVICE_ISSUE"
+        string priority
+        string status "NEW / IN_PROGRESS / RESOLVED"
+        timestamp target_sla_resolution
+    }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#090d16',
+        primaryColor: '#1e3a8a',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#3b82f6',
+        lineColor: '#60a5fa',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#0f172a'
+      }
+    });
+
+    function getSVGData(containerId) {
+      const container = document.getElementById(containerId);
+      const svg = container.querySelector('svg');
+      if (!svg) return null;
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      return {
+        svgString: new XMLSerializer().serializeToString(clone),
+        width: svg.viewBox.baseVal ? svg.viewBox.baseVal.width : svg.getBoundingClientRect().width || 1200,
+        height: svg.viewBox.baseVal ? svg.viewBox.baseVal.height : svg.getBoundingClientRect().height || 800
+      };
+    }
+
+    function downloadSVG(containerId, filename) {
+      const data = getSVGData(containerId);
+      if (!data) {
+        alert('Diagram belum selesai di-render!');
+        return;
+      }
+      const blob = new Blob([data.svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadPNG(containerId, filename) {
+      const data = getSVGData(containerId);
+      if (!data) {
+        alert('Diagram belum selesai di-render!');
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      const scale = 2; // high resolution (2x)
+      canvas.width = data.width * scale;
+      canvas.height = data.height * scale;
+      const ctx = canvas.getContext('2d');
+
+      // Isi background gelap
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const img = new Image();
+      const svgBlob = new Blob([data.svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = function() {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(function(pngBlob) {
+          const pngUrl = URL.createObjectURL(pngBlob);
+          const link = document.createElement('a');
+          link.href = pngUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(pngUrl);
+        }, 'image/png');
+      };
+      img.src = url;
+    }
+  </script>
+</body>
+</html>

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const appSource = [
+  new URL('../src/App.jsx', import.meta.url),
+  new URL('../src/pages/workspace/ConversationWorkbench.jsx', import.meta.url),
+].map((url) => readFileSync(url, 'utf8')).join('\n')
 
 test('agent reply validates, posts through the workspace endpoint, and refreshes the transcript', () => {
   assert.match(appSource, /const content = reply\.trim\(\)/)
