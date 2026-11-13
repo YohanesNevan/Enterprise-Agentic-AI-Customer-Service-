@@ -350,29 +350,53 @@ def register(app):
             db.close()
 
     @app.get("/v1/customer/conversations")
-    async def customer_conversations(limit: int = 20, cursor: str | None = None,
+    async def customer_conversations(limit: int = 20, cursor: str | None = None, search: str | None = None,
                                      ctx=Depends(require_perm("conversation.read"))):
         if ctx["role"] != "customer": raise AppError("E_PROHIBITED", "customer access required")
         if not 1 <= limit <= 50: raise AppError("E_VALIDATION", "limit must be between 1 and 50", customer_message_id="CONV.LIMIT_INVALID")
+        search_text = (search or "").strip()
+        if len(search_text) > 120:
+            raise AppError("E_VALIDATION", "search must not exceed 120 characters", customer_message_id="CONV.SEARCH_INVALID")
         db = SessionLocal()
         try:
+            first_message = (db.query(MessageRow.content)
+                             .filter(MessageRow.conversation_id == ConversationRow.conversation_id,
+                                     MessageRow.direction == "INBOUND")
+                             .order_by(MessageRow.sequence_no.asc(), MessageRow.occurred_at.asc())
+                             .limit(1).correlate(ConversationRow).scalar_subquery())
+            latest_message = (db.query(MessageRow.content)
+                              .filter(MessageRow.conversation_id == ConversationRow.conversation_id)
+                              .order_by(MessageRow.occurred_at.desc(), MessageRow.sequence_no.desc())
+                              .limit(1).correlate(ConversationRow).scalar_subquery())
             query = db.query(ConversationRow).filter_by(tenant_id=ctx["tenant_id"], customer_id=ctx["actor_id"])
+            if search_text:
+                pattern = f"%{search_text}%"
+                query = query.filter(or_(first_message.ilike(pattern), latest_message.ilike(pattern)))
             if cursor:
                 try:
                     stamp, conv_cursor = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode().split("|", 1)
                     boundary = datetime.fromisoformat(stamp)
                 except Exception: raise AppError("E_VALIDATION", "invalid cursor", customer_message_id="CONV.CURSOR_INVALID")
                 query = query.filter((ConversationRow.last_activity_at < boundary) | ((ConversationRow.last_activity_at == boundary) & (ConversationRow.conversation_id < conv_cursor)))
-            rows = query.order_by(ConversationRow.last_activity_at.desc(), ConversationRow.conversation_id.desc()).limit(limit + 1).all()
+            rows = (query.add_columns(first_message.label("title"), latest_message.label("preview"))
+                    .order_by(ConversationRow.last_activity_at.desc(), ConversationRow.conversation_id.desc())
+                    .limit(limit + 1).all())
             more = len(rows) > limit; rows = rows[:limit]
             next_cursor = None
             if more and rows:
-                last = rows[-1]
+                last = rows[-1][0]
                 raw = f"{last.last_activity_at.isoformat()}|{last.conversation_id}".encode()
                 next_cursor = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+            def summary(text: str | None, fallback: str, max_length: int) -> str:
+                normalized = " ".join((text or "").split()) or fallback
+                return normalized if len(normalized) <= max_length else normalized[:max_length - 3].rstrip() + "..."
+
             return {"items": [{"conversation_id": row.conversation_id, "status": row.status, "language": row.language,
                                "origin_channel": row.origin_channel, "current_channel": row.current_channel,
-                               "created_at": row.created_at.isoformat(), "last_activity_at": row.last_activity_at.isoformat()} for row in rows],
+                               "created_at": row.created_at.isoformat(), "last_activity_at": row.last_activity_at.isoformat(),
+                               "title": summary(title, "Percakapan layanan", 80),
+                               "preview": summary(preview, "Belum ada pesan", 120)}
+                              for row, title, preview in rows],
                     "next_cursor": next_cursor}
         finally: db.close()
 

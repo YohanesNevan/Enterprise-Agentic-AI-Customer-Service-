@@ -157,6 +157,39 @@ def test_customer_history_and_detail_enforce_owner_and_tenant():
     assert client.get("/v1/customer/conversations", headers=auth_headers("cs_agent", "agent-1")).status_code == 403
 
 
+def test_customer_history_list_returns_searchable_previews_only_for_owner():
+    import datetime
+    db = SessionLocal()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    db.add_all([
+        ConversationRow(conversation_id="customer-chat-a", tenant_id="TNT-TEST", customer_id="customer-a",
+                        created_at=now, last_activity_at=now),
+        ConversationRow(conversation_id="customer-chat-b", tenant_id="TNT-TEST", customer_id="customer-b",
+                        created_at=now, last_activity_at=now),
+    ])
+    db.flush()
+    db.add_all([
+        MessageRow(message_id="customer-msg-a1", conversation_id="customer-chat-a", sequence_no=0,
+                   direction="INBOUND", content="Tanya biaya layanan cloud", occurred_at=now),
+        MessageRow(message_id="customer-msg-a2", conversation_id="customer-chat-a", sequence_no=1,
+                   direction="OUTBOUND", content="Biaya layanan tersedia sesuai paket.", occurred_at=now),
+        MessageRow(message_id="customer-msg-b1", conversation_id="customer-chat-b", sequence_no=0,
+                   direction="INBOUND", content="Rahasia percakapan pengguna lain", occurred_at=now),
+    ])
+    db.commit()
+    db.close()
+
+    headers = auth_headers("customer", "customer-a", "TNT-TEST")
+    listing = client.get("/v1/customer/conversations", headers=headers)
+    assert listing.status_code == 200
+    assert listing.json()["items"][0]["title"] == "Tanya biaya layanan cloud"
+    assert listing.json()["items"][0]["preview"] == "Biaya layanan tersedia sesuai paket."
+    assert "content" not in listing.json()["items"][0]
+    assert len(client.get("/v1/customer/conversations?search=biaya", headers=headers).json()["items"]) == 1
+    assert client.get("/v1/customer/conversations?search=rahasia", headers=headers).json()["items"] == []
+    assert client.get("/v1/customer/conversations?search=" + ("x" * 121), headers=headers).status_code == 400
+
+
 def test_customer_message_history_uses_bounded_keyset_cursor():
     db = SessionLocal()
     db.add(ConversationRow(conversation_id="paged-conversation", tenant_id="TNT-TEST", customer_id="customer-page"))

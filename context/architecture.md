@@ -7,6 +7,7 @@
 - `app/modules/` contains domain services and persistence models for conversation, identity simulation, intent, knowledge, orchestration, tools, cases, tickets, handoff, SLA, approval, QA, analytics, and outbox.
 - SQLAlchemy models are split between `models_a.py` and `models.py`; PostgreSQL is default, SQLite is opt-in for tests. Alembic currently has one initial migration.
 - React 18 + Vite 5 SPA is in `web-workspace/`; the role-aware History API shell and injectable bearer-token provider are in `src/api.js`. Fixed-account local customer login and allowlisted local staff login can each be enabled explicitly for development; both mint 15-minute tokens through the same HS256 principal path and are loopback-only. Tokens remain memory-only in the SPA. These are not production identity providers. Vite proxies API paths to port 8000 and both Nginx/Vercel configurations provide SPA deep-link fallback.
+- The SPA keeps route metadata in `src/routes.js`, the role-aware shell in `src/App.jsx`, reusable navigation/UI/form helpers in `src/shared/`, and customer and staff pages in `src/pages/customer/` and `src/pages/workspace/`. Styles are grouped by shell, customer, workspace, knowledge, and chat under `src/styles/`; `src/app.css` imports them in cascade order.
 - Docker Compose includes PostgreSQL/pgvector, Redis, MinIO and Mailpit, but source inspection did not establish complete usage of each service.
 
 ## Data ownership and persistence
