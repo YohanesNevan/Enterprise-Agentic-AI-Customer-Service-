@@ -56,7 +56,40 @@ Frontend juga dapat dipublikasikan terpisah di Vercel; API dan PostgreSQL tetap 
 - `npm run dev` langsung exit: gunakan script `dev` bawaan (`vite --port 5173`); flag CLI tak dikenal membuat Vite menolak start.
 - Port dipakai: `netstat -ano | findstr "8000 5173"` lalu hentikan proses lama.
 
-## Next (sesuai TRD §14.5)
-- Minggu 6-7: antrean prioritas + workspace React + OTP/Auth read-model (butuh A)
-- Minggu 8-9: SLA tick Beat + outbox CRM worker + approval UI
-- Minggu 11-13: QA sampling penuh + eval + dasbor driver-tree 2 tingkat
+## Screenshots
+
+### 🏠 Halaman Utama
+![Home EAICS](images/HomeEAICS.png)
+
+### 🔐 Login & Pilih Role
+![Login Role](images/LoginRole.png)
+
+### 💬 Customer — Chat AI
+![Customer Chat](images/CustomerChat.png)
+
+### 📜 Customer — Riwayat Chat
+![Chat History](images/ChatHistory.png)
+
+### 📋 Customer — Form Komplain
+![Complaint Customer](images/ComplaintCustomer.png)
+
+### 🔍 Customer — Tracking Status Komplain
+![Track Status](images/TrackStatus.png)
+
+### 👤 Customer — Profil
+![Profile Customer](images/ProfileCustomer.png)
+
+### 🖥️ Staff — Workbench
+![Staff Workbench](images/StaffWorkbench.png)
+
+### 🔄 Staff — Handoff
+![Staff Handoff](images/StaffHandoff.png)
+
+### 🎫 Staff — Ticket & Cases
+![Ticket Cases](images/TicketCases.png)
+
+### 📚 Admin — Knowledge Base
+![Knowledge Base](images/KnowledgeBase.png)
+
+### ➕ Admin — Tambah Knowledge
+![Add Knowledge](images/AddKnowledge.png)
