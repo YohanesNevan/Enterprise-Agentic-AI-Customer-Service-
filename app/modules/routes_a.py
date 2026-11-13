@@ -60,6 +60,7 @@ def register(app):
         text: str = Field(min_length=1, max_length=4000)
         conversation_id: str | None = Field(default=None, min_length=1, max_length=30)
         channel: str = "WEB_CHAT"
+        force_new: bool = False
 
     def dev_auth_enabled():
         enabled = os.getenv("DEV_CUSTOMER_AUTH_ENABLED", "").lower() == "true"
@@ -237,7 +238,7 @@ def register(app):
                     prior = db.query(CustomerRequestRow).filter_by(request_id=request_id).first()
                     if prior and prior.request_hash == fingerprint and prior.state == "COMPLETE": return prior.response
                     raise AppError("E_CONFLICT", "request is already being processed", customer_message_id="CONV.REQUEST_IN_PROGRESS")
-                body = {"text": parsed.text, "channel": parsed.channel, "conversation_id": parsed.conversation_id}
+                body = {"text": parsed.text, "channel": parsed.channel, "conversation_id": parsed.conversation_id, "force_new": parsed.force_new}
             conv_id = body.get("conversation_id")
             actor_handle = ctx["actor_id"] if ctx["role"] == "customer" else body.get("from_handle", "anon")
             if not conv_id:
@@ -246,7 +247,8 @@ def register(app):
                                    body.get("text", ""), body.get("provider_message_id"),
                                    None, ctx, request.state.correlation_id,
                                    tenant=ctx["tenant_id"],
-                                   claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")))
+                                   claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")),
+                                   force_new=bool(body.get("force_new")))
                 conv_id = r["conversation_id"]
             else:
                 # append inbound manual
@@ -274,31 +276,135 @@ def register(app):
             db.close()
 
     @app.get("/v1/customer/conversations")
-    async def customer_conversations(limit: int = 20, cursor: str | None = None,
+    async def customer_conversations(limit: int = 20, cursor: str | None = None, search: str | None = None,
                                      ctx=Depends(require_perm("conversation.read"))):
         if ctx["role"] != "customer": raise AppError("E_PROHIBITED", "customer access required")
         if not 1 <= limit <= 50: raise AppError("E_VALIDATION", "limit must be between 1 and 50", customer_message_id="CONV.LIMIT_INVALID")
+        search_text = (search or "").strip()
+        if len(search_text) > 120:
+            raise AppError("E_VALIDATION", "search must not exceed 120 characters", customer_message_id="CONV.SEARCH_INVALID")
         db = SessionLocal()
         try:
+            first_message = (db.query(MessageRow.content)
+                             .filter(MessageRow.conversation_id == ConversationRow.conversation_id,
+                                     MessageRow.direction == "INBOUND")
+                             .order_by(MessageRow.sequence_no.asc(), MessageRow.occurred_at.asc())
+                             .limit(1).correlate(ConversationRow).scalar_subquery())
+            latest_message = (db.query(MessageRow.content)
+                              .filter(MessageRow.conversation_id == ConversationRow.conversation_id)
+                              .order_by(MessageRow.occurred_at.desc(), MessageRow.sequence_no.desc())
+                              .limit(1).correlate(ConversationRow).scalar_subquery())
             query = db.query(ConversationRow).filter_by(tenant_id=ctx["tenant_id"], customer_id=ctx["actor_id"])
+            if search_text:
+                pattern = f"%{search_text}%"
+                query = query.filter(or_(first_message.ilike(pattern), latest_message.ilike(pattern)))
             if cursor:
                 try:
                     stamp, conv_cursor = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode().split("|", 1)
                     boundary = datetime.fromisoformat(stamp)
                 except Exception: raise AppError("E_VALIDATION", "invalid cursor", customer_message_id="CONV.CURSOR_INVALID")
                 query = query.filter((ConversationRow.last_activity_at < boundary) | ((ConversationRow.last_activity_at == boundary) & (ConversationRow.conversation_id < conv_cursor)))
-            rows = query.order_by(ConversationRow.last_activity_at.desc(), ConversationRow.conversation_id.desc()).limit(limit + 1).all()
+            rows = (query.add_columns(first_message.label("title"), latest_message.label("preview"))
+                    .order_by(ConversationRow.last_activity_at.desc(), ConversationRow.conversation_id.desc())
+                    .limit(limit + 1).all())
             more = len(rows) > limit; rows = rows[:limit]
             next_cursor = None
             if more and rows:
-                last = rows[-1]
+                last = rows[-1][0]
                 raw = f"{last.last_activity_at.isoformat()}|{last.conversation_id}".encode()
                 next_cursor = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+            def summary(text: str | None, fallback: str, max_length: int) -> str:
+                normalized = " ".join((text or "").split()) or fallback
+                return normalized if len(normalized) <= max_length else normalized[:max_length - 3].rstrip() + "..."
+
             return {"items": [{"conversation_id": row.conversation_id, "status": row.status, "language": row.language,
                                "origin_channel": row.origin_channel, "current_channel": row.current_channel,
-                               "created_at": row.created_at.isoformat(), "last_activity_at": row.last_activity_at.isoformat()} for row in rows],
+                               "created_at": row.created_at.isoformat(), "last_activity_at": row.last_activity_at.isoformat(),
+                               "title": summary(title, "Percakapan layanan", 80),
+                               "preview": summary(preview, "Belum ada pesan", 120)}
+                              for row, title, preview in rows],
                     "next_cursor": next_cursor}
         finally: db.close()
+
+    # ---- Unit 06: Customer Complaint & Ticket Submission APIs ----
+    @app.post("/v1/customer/complaints")
+    async def customer_submit_complaint(body: dict, request: Request,
+                                        ctx=Depends(require_perm("conversation.write"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+
+        category = str(body.get("category") or "GENERAL").strip().upper()
+        title = str(body.get("title") or "").strip()
+        description = str(body.get("description") or "").strip()
+        reference = str(body.get("reference") or "").strip() or None
+        conversation_id = body.get("conversation_id")
+
+        if not description or len(description) < 5:
+            raise AppError("E_VALIDATION", "deskripsi pengaduan minimal 5 karakter", customer_message_id="COMPLAINT.DESC_TOO_SHORT")
+        if not title:
+            title = f"Pengaduan {category.replace('_', ' ').title()}"
+
+        db = SessionLocal()
+        try:
+            from .cases import CreateTicketIn
+            from .store import create_ticket_db
+            from .conversation import ingest
+
+            if not conversation_id:
+                ingest_res = ingest(
+                    db,
+                    channel="WEB_CHAT",
+                    from_handle=ctx["actor_id"],
+                    text=f"[Pengaduan Resmi] {title}: {description}",
+                    claimed_customer_id=ctx["actor_id"],
+                    tenant=ctx["tenant_id"],
+                    corr=request.state.correlation_id,
+                )
+                conversation_id = ingest_res["conversation_id"]
+
+            ticket_in = CreateTicketIn(
+                conversation_id=conversation_id,
+                customer_id=ctx["actor_id"],
+                type=category,
+                sub_type=reference,
+                priority="HIGH" if category in ("TRANSACTION_DISPUTE", "CARD_ISSUE") else "NORMAL",
+                description=f"{title}\n{description}" + (f"\nReferensi: {reference}" if reference else ""),
+                source_channel="WEB_CHAT",
+            )
+            created = create_ticket_db(db, ticket_in, ctx, request.state.correlation_id, tenant=ctx["tenant_id"])
+            return created
+        finally:
+            db.close()
+
+    @app.get("/v1/customer/complaints")
+    async def customer_list_complaints(limit: int = 50,
+                                       ctx=Depends(require_perm("conversation.read"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        db = SessionLocal()
+        try:
+            from ..core.ids import short_reference
+            q = db.query(BModels.TicketRow).filter_by(tenant_id=ctx["tenant_id"], customer_id=ctx["actor_id"])
+            items = q.order_by(BModels.TicketRow.created_at.desc()).limit(limit).all()
+
+            results = []
+            for t in items:
+                sla_row = db.query(BModels.SlaRecordRow).filter_by(object_id=t.ticket_id, tenant_id=ctx["tenant_id"]).first()
+                results.append({
+                    "ticket_id": t.ticket_id,
+                    "customer_reference": short_reference("ticket", t.ticket_id),
+                    "conversation_id": t.conversation_id,
+                    "category": t.type,
+                    "sub_type": t.sub_type,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "description": t.description,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "resolution_due_at": sla_row.resolution_due_at.isoformat() if sla_row and sla_row.resolution_due_at else None,
+                })
+            return results
+        finally:
+            db.close()
 
     # ---- Read-model I-11 (TRD §7.3) — A produksi, B konsumsi ----
     @app.get("/v1/conversations/{conv_id}/read-model")

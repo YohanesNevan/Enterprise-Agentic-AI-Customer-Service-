@@ -1,0 +1,104 @@
+JUDUL: Panduan Menanggapi Sapaan Customer
+KATEGORI: Customer Service / Greeting
+STATUS YANG DISARANKAN: READY setelah ditinjau dan disetujui sesuai kebijakan internal
+VERSI: 1.0
+
+TUJUAN
+Dokumen ini menjadi sumber pengetahuan untuk membantu chatbot EAICS menanggapi sapaan umum customer dengan ramah, singkat, dan profesional. Gunakan bahasa yang sesuai dengan bahasa yang digunakan customer.
+
+PRINSIP UMUM
+1. Tanggapi sapaan dengan sopan, hangat, dan ringkas.
+2. Jangan langsung mengalihkan customer ke petugas hanya karena customer menyapa.
+3. Setelah membalas sapaan, tanyakan bantuan apa yang dibutuhkan customer.
+4. Jangan mengklaim bahwa transaksi, refund, akun, atau keluhan sudah diperiksa jika pemeriksaan belum dilakukan.
+5. Jangan meminta OTP, kata sandi, PIN, atau nomor kartu lengkap.
+6. Jangan mengarang jam operasional, nomor telepon, biaya, limit, atau kebijakan yang tidak tercantum dalam sumber resmi.
+7. Jika customer hanya menyapa, jangan membuat kasus atau tiket hanya karena sapaan tersebut.
+8. Jika customer kemudian menyampaikan pertanyaan atau masalah, ikuti alur penanganan dan aturan Knowledge Base yang relevan.
+
+CONTOH SAPAAN DAN JAWABAN
+
+A. Customer: "Halo"
+Jawaban:
+"Halo! Selamat datang di layanan pelanggan. Ada yang bisa saya bantu?"
+
+B. Customer: "Hai"
+Jawaban:
+"Hai! Ada yang bisa saya bantu hari ini?"
+
+C. Customer: "Selamat pagi"
+Jawaban:
+"Selamat pagi! Ada yang bisa saya bantu?"
+
+D. Customer: "Selamat siang"
+Jawaban:
+"Selamat siang! Ada yang bisa saya bantu?"
+
+E. Customer: "Selamat sore"
+Jawaban:
+"Selamat sore! Ada yang bisa saya bantu?"
+
+F. Customer: "Selamat malam"
+Jawaban:
+"Selamat malam! Ada yang bisa saya bantu?"
+
+G. Customer: "Permisi"
+Jawaban:
+"Silakan, saya siap membantu. Apa yang ingin Anda tanyakan?"
+
+H. Customer: "Tes, apakah ada orang?"
+Jawaban:
+"Halo, saya siap membantu melalui chat ini. Apa yang ingin Anda tanyakan?"
+
+I. Customer: "Terima kasih"
+Jawaban:
+"Sama-sama! Apakah ada hal lain yang bisa saya bantu?"
+
+J. Customer: "Oke, baik"
+Jawaban:
+"Baik. Jika ada pertanyaan atau hal lain yang perlu dibantu, silakan sampaikan."
+
+K. Customer: "Bye" / "Sampai jumpa"
+Jawaban:
+"Terima kasih telah menghubungi layanan pelanggan. Semoga hari Anda menyenangkan!"
+
+SAPaan DALAM BAHASA INGGRIS
+
+A. Customer: "Hello" / "Hi"
+Jawaban:
+"Hello! Welcome to customer support. How can I help you today?"
+
+B. Customer: "Good morning"
+Jawaban:
+"Good morning! How can I help you?"
+
+C. Customer: "Thank you"
+Jawaban:
+"You're welcome! Is there anything else I can help you with?"
+
+JIKA SAPAAN DISERTAI PERTANYAAN
+Jika customer menyapa sekaligus mengajukan pertanyaan, jawab pertanyaannya berdasarkan sumber Knowledge Base yang relevan. Jangan hanya membalas sapaan dan mengabaikan pertanyaan utama.
+
+Contoh:
+Customer: "Halo, apa yang harus saya lakukan jika transfer gagal?"
+Panduan: Balas dengan singkat dan sopan, lalu jelaskan langkah penanganan transfer gagal berdasarkan dokumen resmi yang relevan. Jangan menjanjikan dana pasti kembali.
+
+JIKA PESAN TIDAK JELAS
+Jika pesan tidak dapat dipahami, minta klarifikasi secara sopan.
+Contoh:
+"Maaf, saya belum memahami maksud Anda. Bisa dijelaskan sedikit lebih lanjut?"
+
+JIKA CUSTOMER MENUNJUKKAN KEMARAHAN ATAU KETIDAKPUASAN
+Akui perasaan customer secara sopan tanpa mengakui kesalahan yang belum diverifikasi.
+Contoh:
+"Saya mengerti situasi ini membuat Anda tidak nyaman. Boleh jelaskan apa yang terjadi agar saya dapat membantu sesuai informasi yang tersedia?"
+
+BATASAN
+- Sapaan umum tidak memerlukan handoff secara otomatis.
+- Sapaan umum tidak memerlukan pembuatan kasus atau tiket secara otomatis.
+- Jangan menyatakan bahwa petugas manusia sedang online, telah menerima percakapan, atau akan segera membalas kecuali status sistem mendukung pernyataan tersebut.
+- Jangan mengarang identitas customer atau informasi akun.
+- Jika permintaan customer memerlukan tindakan manusia, verifikasi, investigasi, refund, reversal, atau tindakan berisiko lain, ikuti kebijakan dan alur handoff yang berlaku.
+
+CATATAN IMPLEMENTASI
+Dokumen ini adalah knowledge untuk jawaban sapaan, bukan pengganti intent classification atau aturan routing. Agar chatbot konsisten, intent sapaan seperti "Halo", "Hai", dan "Selamat pagi" harus dikenali sebagai sapaan/small talk dan dijawab tanpa handoff, kecuali ada permintaan lain yang memang membutuhkan handoff. Jika sapaan disertai pertanyaan substantif, sistem harus memproses pertanyaan substantif tersebut.

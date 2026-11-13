@@ -25,7 +25,7 @@ KEYWORDS = {
     # Include the exact supported seed-article topic as a phrase. A single
     # broad token ("biaya") otherwise stays in CLARIFY despite a clear query.
     "INFO_PRODUCT_POLICY": ["biaya", "biaya transfer", "transfer internasional", "fee", "bunga", "syarat", "ketentuan", "policy", "tarif"],
-    "INFO_ACCOUNT_BALANCE": ["saldo", "balance", "dana tersedia", "sisa uang"],
+    "INFO_ACCOUNT_BALANCE": ["saldo", "balance", "dana tersedia", "sisa uang", "sisa saldo", "cek saldo", "informasi saldo", "saldo rekening"],
     "INFO_TRANSACTION_HISTORY": ["transaksi", "mutasi", "riwayat", "history", "transaction"],
     "INFO_CASE_STATUS": ["status", "tiket", "kasus", "referensi", "reference", "laporan saya"],
     "REQ_STATEMENT_DOCUMENT": ["rekening koran", "statement", "surat", "sertifikat", "dokumen"],
@@ -64,6 +64,32 @@ def _is_greeting_only(text: str) -> bool:
         return True
     return normalized in {"apa kabar", "ada orang", "tes ada orang", "test ada orang",
                           "testing ada orang", "ada orang ya", "ada orang di sana"}
+
+def _info_request_phrase(t: str) -> bool:
+    """Imperative information requests ("beritahu saya profil perusahaan") are retrieval questions,
+    not unknown intents. Retrieval + grounding still decide whether an answer or a knowledge-gap handoff follows."""
+    return bool(re.search(
+        r"\b(?:beritahu|beri\s+tahu|ceritakan|sebutkan|jelaskan|informasikan|tolong\s+jelaskan|"
+        r"saya\s+(?:ingin|mau|butuh)\s+(?:tahu|mengetahui|informasi)|info(?:rmasi)?\s+(?:tentang|mengenai|soal))\b"
+        r"|\b(?:profil|sejarah|visi|misi|latar\s+belakang)\s+(?:perusahaan|bank|kami|ini)\b", t))
+
+
+def _human_agent_requested(text: str) -> bool:
+    import re
+    t = (text or "").casefold()
+    target_human = r"(?:petugas|manusia|cs\b|customer\s+service|staf|staff|operator|agen\b|orang\s+asli|orang\s+langsung)"
+    verb_contact = r"(?:berbicara|bicara|merbiacara|berbincang|ngobrol|terhubung|sambung|sambungkan|hubungkan|menghubungi|dialihkan|alihkan|pindah|transfer)"
+    want_words = r"(?:butuh|minta|ingin|mau|tolong|mohon|bisa)"
+    patterns = (
+        rf"\b{verb_contact}\s+(?:ke\s+|dengan\s+|sama\s+)?{target_human}\b",
+        rf"\b{want_words}\s+(?:bantuan\s+|bicara\s+dengan\s+|berbicara\s+dengan\s+|merbiacara\s+dengan\s+)?{target_human}\b",
+        rf"\b{target_human}\s+(?:saja|asli|langsung)\b",
+        rf"\btransfer\s+(?:ke\s+)?{target_human}\b",
+        rf"\b(?:berbicara|bicara|merbiacara)\s+langsung\b",
+        rf"\b{want_words}\s+.*{target_human}\b",
+        rf"\b{verb_contact}\s+.*{target_human}\b",
+    )
+    return any(re.search(p, t) for p in patterns)
 
 def _human_action_requested(text: str) -> bool:
     """Only route to a human when the customer asks us to execute a restricted action."""
@@ -122,6 +148,7 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
     # complaint, fraud, staff-conduct, and vulnerability routing in control.
     t = text.casefold().strip()
     human_action = _human_action_requested(t)
+    human_agent_req = _human_agent_requested(t)
     reverse_what_question = bool(re.search(r"\b[\w-]+\s+itu\s+apa[?.!]*$", t))
     generic_question = (top_c < 0.30 and len(t.split()) >= 3 and t.endswith("?")
                         and not human_action)
@@ -131,20 +158,53 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
                                    "kenapa?", "jelaskan ", "maksudnya ", "what ", "how ",
                                    "where ", "why "))
                      or any(p in t for p in ("apa itu ", "apa yang harus saya lakukan", "bagaimana bisa "))
+                     or _info_request_phrase(t)
                      or reverse_what_question or generic_question)
     forced_intents = {"CMP_FRAUD_SUSPICION", "CMP_STAFF_CONDUCT"}
-    if human_action:
+    dispute_patterns = (
+        r"\b(?:saldo|dana|uang)\b.*\b(?:terpotong|kepotong|berkurang|hilang)\b",
+        r"\b(?:uang|dana)\b.*\b(?:tidak|gak|nggak|belum)\b.*\b(?:keluar|masuk|sampai)\b",
+        r"\b(?:gagal|batal|error)\b.*\b(?:tarik|transfer|debet|debit|kirim)\b",
+        r"\btransaksi\b.*\bgagal\b",
+        r"\bsalah\b.*\bdebet\b",
+    )
+    is_dispute = any(re.search(p, t, re.IGNORECASE) for p in dispute_patterns) or any(
+        s in t for s in ("gagal transfer", "transaksi gagal", "salah debet", "saldo kepotong", "saldo berkurang", "saldo terpotong", "tidak masuk")
+    )
+    direct_actions = {
+        "blokir": ("REQ_CARD_BLOCK", 0.90),
+        "blokir kartu": ("REQ_CARD_BLOCK", 0.95),
+        "kartu hilang": ("REQ_CARD_BLOCK", 0.90),
+        "ganti kartu": ("REQ_CARD_REPLACEMENT", 0.90),
+        "penggantian kartu": ("REQ_CARD_REPLACEMENT", 0.90),
+        "cek saldo": ("INFO_ACCOUNT_BALANCE", 0.90),
+        "lihat saldo": ("INFO_ACCOUNT_BALANCE", 0.90),
+        "saldo": ("INFO_ACCOUNT_BALANCE", 0.85),
+        "mutasi": ("INFO_TRANSACTION_HISTORY", 0.85),
+        "riwayat transaksi": ("INFO_TRANSACTION_HISTORY", 0.90),
+    }
+    clean_t = t.rstrip("?.!")
+    if clean_t in direct_actions:
+        top, top_c, second_c = direct_actions[clean_t][0], direct_actions[clean_t][1], 0.0
+    elif human_action:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.95, 0.0
-    elif informational and top not in forced_intents and not any(w in t for w in ("ditipu", "penipuan", "diancam", "dipaksa")):
+    elif is_dispute:
+        top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.90, 0.0
+    elif informational and top not in forced_intents and not any(w in t for w in ("ditipu", "penipuan", "diancam", "dipaksa", "saldo", "rekening", "blokir", "mutasi")):
         top, top_c, second_c = "INFO_PRODUCT_POLICY", 0.80, 0.0
-    # di luar taksonomi
-    if top_c < 0.30:
+    # di luar taksonomi atau permintaan langsung bantuan manusia
+    if human_agent_req:
+        res = {"intent_code": "OTHER_UNCLASSIFIED", "category": "INQUIRY", "confidence": 0.95,
+               "decision": "HANDOFF", "handoff_reason": "CUSTOMER_REQUEST", "entities": {}, "multi": []}
+    elif top_c < 0.30:
         res = {"intent_code": "OTHER_UNCLASSIFIED", "category": "INQUIRY", "confidence": 0.30,
                "decision": "HANDOFF", "entities": {}, "multi": []}
     else:
         # hampir-seri dalam 0.10 -> paksa klarifikasi (TRD §4.5)
         near_tie = (top_c - second_c) < 0.10 and second_c >= 0.45
-        if human_action:
+        if human_agent_req:
+            dec = "HANDOFF"
+        elif human_action:
             dec = "HANDOFF"
         elif top in MANDATORY_HANDOFF:
             dec = "HANDOFF"
@@ -173,6 +233,9 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
     res.update({"sentiment": s, "urgency": urg, "safety_flag": safety})
     if res.get("vulnerability_flag"):
         res["handoff_reason"] = "VULNERABILITY"
+    elif human_agent_req:
+        res["decision"] = "HANDOFF"
+        res["handoff_reason"] = "CUSTOMER_REQUEST"
     elif human_action:
         res["handoff_reason"] = "HUMAN_ACTION_REQUIRED"
     elif _repeat_contact_explicit(text):
@@ -191,12 +254,28 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
 
 def _slots(text: str) -> dict:
     import re
-    t = text.lower()
+    t = (text or "").lower()
     out = {}
-    m = re.search(r"(\d{4})(?!.*\d)", text)
-    if m: out["card_last4"] = m.group(1)
-    m2 = re.search(r"(trx|ref)[-:\s]*([\w-]+)", t)
-    if m2: out["reference"] = m2.group(2)
+    m2 = re.search(r"(trx|ref|transaksi|tx)[-:\s#]*([a-zA-Z0-9_-]+)", t)
+    if m2:
+        out["reference"] = m2.group(2).upper()
+    else:
+        m_code = re.search(r"\b(trx-?[a-zA-Z0-9]+|ref-?[a-zA-Z0-9]+)\b", t, re.IGNORECASE)
+        if m_code:
+            out["reference"] = m_code.group(1).upper()
+
+    m = re.search(r"(\d{4})(?!.*\d)", text or "")
+    if m and "kartu" in t:
+        out["card_last4"] = m.group(1)
+    elif m and not out.get("reference"):
+        out["card_last4"] = m.group(1)
+
+    m_amt = re.search(r"(?:rp\.?\s*|sebesar\s+|senilai\s+)(\d{1,3}(?:[.,]\d{3})*|\d+)", t)
+    if not m_amt:
+        m_amt = re.search(r"\b(\d+)\s*(?:ribu|rb|juta|jt)\b", t)
+    if m_amt:
+        raw_amt = m_amt.group(1).replace(".", "").replace(",", "")
+        out["amount"] = raw_amt
     if "besok" in t: out["date_hint"] = "tomorrow"
     return out
 

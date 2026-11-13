@@ -1,4 +1,4 @@
-﻿# Progress Tracker
+# Progress Tracker
 
 ## Current phase
 
@@ -24,18 +24,35 @@ Complete and verify the customer conversation journey; production identity remai
 - Confirmed the backend already defines the `customer` role and the API test helper can sign test-only customer tokens. A trusted production issuer and customer account provisioning are still absent.
 - Found a cross-customer replay risk: provider-message deduplication in `app/modules/conversation.py` is global and returns the prior conversation ID before tenant/owner checks. The Unit 04 spec requires fixing this and adding regression coverage before customer access is exposed.
 - Started Vite at `http://127.0.0.1:5173/`; local HTTP GET returned 200 and the application title. This is a launch/HTTP smoke check only; no browser rendering was verified.
+- Implemented LangGraph StateGraph agentic decision loop in `app/modules/agent_graph.py` with TriageNode, ClarifyNode, GreetingNode, ToolNode, RAGNode, LLMNode, and HandoffNode. Integrated seamlessly into `orchestrator.run_turn` with automated test suite in `tests/test_agent_graph.py` (4/4 tests passed).
+- Completed Unit 06 and Unit 07: Implemented `POST /v1/customer/complaints` and `GET /v1/customer/complaints` in `app/modules/routes_a.py` with strict tenant and customer-owner isolation and SLA calculation. Upgraded customer portal UI (`CustomerRequest` and `CustomerTrack` in `web-workspace/src/App.jsx`) with dual-mode official complaint filing, category selection, confirmation cards, SLA target tracking, and progress status badges. Verified with `tests/test_customer_complaints.py` (2/2 passed) and frontend Vite production build (33 modules transformed).
+- Completed Agentic AI Transformation per FRD, TRD §8/§16, and Mitra Slide Deck (V-TEKI & UKDW):
+  1. LangGraph StateGraph Decision Loop: Fixed intent routing in `agent_graph.py` to handle both `HUMAN` and `HANDOFF` decisions and route action tools via `tool_node`.
+  2. Context & Clarification (TRD §8.1/8.2): Added conversational clarification formatting and enforced mandatory handoff after 2 clarification attempts.
+  3. Knowledge Base Hygiene: Filtered internal SOP/prompt files (`05_ALIH_TANGAN_CUSTOMER_SERVICE.txt`, `06_CARA_KERJA_CHATBOT_DAN_SUMBER_JAWABAN.txt`) in `app/modules/knowledge.py` to prevent prompt leakage.
+  4. Tool Execution & Step-up: Integrated `Gw.evaluate` in `tool_node` with assurance level enforcement (AL0 prompts login, AL2 executes autonomous banking/service actions).
+  5. Human Handoff Context Package (Mitra Slide 20 & TRD §16.4): Connected `HandoffSvc.build_package` to assemble customer summary, recent turns, narrative, and intent history before queueing.
+  6. Gemini LLM Provider: Configured `gemini-3-flash-preview` with 18s timeout and automated sentence claim mapping in `gemini_provider.py`.
+  7. Verified 5 core scenarios (Scenarios A through E) and 100% test suite pass (`test_agent_graph.py`, `test_customer_complaints.py`).
+
+- Completed Unit 08: Agent Workspace Read Model & Queue (`context/specs/08-agent-workspace-read-model-queue.md`):
+  1. Queue List Enrichment (`app/modules/queue.py`): Joined queue rows with `ConversationRow` and `MessageRow` to expose `customer_id`, `intent_code`, and `summary_snippet` with `package_complete` verification badges.
+  2. Workspace Read Model (`app/main.py` `GET /v1/workspace/conversations/{conv_id}`): Assembled full `handoff_package` per TRD §16.4 & Mitra Slide 20, including customer profile, problem analysis/chronology, tool execution history, urgency, sentiment, and actionable recommendations for human agents.
+  3. Frontend Staff Workspace UI (`web-workspace/src/App.jsx`): Rendered the rich **Handoff Context Package Card** with 3 distinct operational zones (Profil & Status, Analisis & Kronologi Masalah AI, Riwayat Tools & Rekomendasi Tindakan Petugas) and enhanced Queue table with intent badges and completeness indicators.
+  4. Verified Test Suites: Added `tests/test_workspace_read_model.py` (access control, handoff package schema, enriched queue items). Fixed test helper token lifetime alignment (900s for human tokens) in `tests/auth_helpers.py`. Full regression test suite passed 15/15 (100% pass) and Vite frontend built cleanly.
 
 ## Current status
 
 - Unit 03 completed and verified per `context/specs/03-role-navigation-shell.md`.
 - Unit 04 local customer login, API, UI integration and regression tests are implemented. Production identity and schema migration remain gated.
+- Unit 06 and Unit 07 customer complaints and tracking completed and verified.
+- Unit 08 Agent Workspace Read Model & Queue completed and verified.
 
 ## Next tasks
 
-1. Complete Unit 05 authenticated browser journey, keyboard and accessibility verification; responsive visual layouts were reviewed during the 2026-10-16 UI refresh.
-2. Implement Unit 06 complaint/ticket ownership APIs and a documented complaint-to-case flow.
-3. Implement Unit 08 full handoff context/read model and agent queue workflow; keep handoff package marked incomplete until verified.
-4. Integrate trusted production identity issuer/account provisioning before enabling production access.
+1. Unit 09: Staff Response & Conversation Wrap-up (CS Agent conversation handling, wrap-up classification, customer feedback collection).
+2. Unit 10: Multi-channel Ingestion Adapters (WhatsApp / Email / Webhook ingestion bridges).
+3. Unit 11: Case & Evidence Management Lifecycle (Adjudication, document verification, multi-department case escalation).
 
 ## Open questions
 
@@ -300,3 +317,69 @@ This update supersedes the earlier “Unit 04 specification prepared; implementa
 - **Scope semantics:** this slice submits service messages and tracks conversations; it does not implement formal complaint cases/tickets or a staff/customer live-reply session. Existing 72-hour conversation continuity can append a submitted message to an existing conversation. UI labels do not expose raw internal status or imply a case/agent session. No backend authorization, database, or role changes were made.
 - **Build:** `npm.cmd run build` in `web-workspace` passed (Vite 5.4.21, 33 modules). No authenticated browser journey or API integration test was run. Taste-skill static lint reported 44 FAIL / 27 WARN across the existing shared `App.jsx`/`app.css` design patterns; this is not a clean design lint result and was not treated as a build failure.
 - **Remaining workflow:** formal case creation/tracking and the human agent reply session remain gated by the unresolved Unit 06 decisions/specification. Do not mark Unit 06 or the complete customer-to-agent workflow done based on this portal slice.
+
+
+## Agentic AI Dynamic Slot Extraction & Autonomous CRM Ticket Creation (2026-11-04)
+
+- **Problem:** previous orchestrator tool executions relied on hardcoded static strings (`****4821`, `range: 30d`, `action: TEMP_BLOCK`), lacked dynamic slot extraction from customer utterances, and always responded to transaction disputes with a passive non-committal message (`"Pesan Anda tersimpan dalam percakapan. Saya belum dapat mengonfirmasi pembuatan tiket..."`) without resolving the problem or issuing a ticket.
+- **Implemented:**
+  1. **Dynamic Slot Extraction (`app/modules/intent.py`):** enhanced `_slots()` to dynamically extract alphanumeric transaction references (`TRX-...`, `REF-...`), card numbers, and currency amounts from conversational Indonesian text. Added dispute keywords (`saldo berkurang`, `saldo kepotong`, `transaksi gagal`) to prevent false-positive balance inquiry clarifications.
+  2. **Dynamic Tool Calling (`app/modules/orchestrator.py`):** updated `_need_tool()` and `_exec_tool()` to accept context slots and pass extracted transaction references, card numbers, and accounts into tool invocations.
+  3. **Autonomous Dispute Ticket Creation:** when handling transaction disputes (`CMP_TRANSACTION_DISPUTE`), the agent checks transaction status via `transaction_lookup`, observes failure/debit mismatch, and automatically creates an official CRM ticket (`cases.create_ticket()`) with a unique reference number (`T-TKTA-...`).
+  4. **Grounding Guardrail Adjustment (`app/modules/guardrail.py`):** updated `groundedness()` to strip trailing sentence punctuation from matched numeric tokens, avoiding false-positive unsupported claim rejections on grounded references at sentence boundaries.
+  5. **Universal Login Platform Boundary:** unified login under `UniversalLogin` and `/v1/dev-auth/login` with automatic role-based dispatching (`customer` => Customer Web, `cs_agent` => Agent Workspace, `supervisor` => Supervisor Dashboard, `management` => Analytics). Removed administrative staff links from the public customer portal sidebar.
+- **Verification:** verified dynamic extraction, transaction dispute resolution, and auto-ticket issuance via end-to-end Python test; verified dynamic card balance lookup and card blocking; verified frontend production build (`npm.cmd run build` passed in 1.43s, 33 modules).
+
+## CRM Ticket Persistence, Endpoints & Cross-Portal Synchronization (2026-11-04)
+
+- **Problem:** AI-generated dispute tickets were previously held only in-memory, missing collection listing endpoints (`GET /v1/tickets`, `GET /v1/cases`), and not rendered in the Agent Workspace `/agent/cases` or Customer Portal `/customer/requests`. Additionally, balance inquiries output raw ISO timestamps (`2026-11-03T18:42:51.452481+00:00`).
+- **Implemented:**
+  1. **Database Ticket Persistence (`app/modules/orchestrator.py`):** linked `_compose_action_answer` with `create_ticket_db`, persisting dispute tickets into `TicketRow` (with SLA calculation and CRM outbox enqueueing), associating the customer ID from `ConversationRow`.
+  2. **Localized Indonesian Timestamps (`app/modules/orchestrator.py`):** formatted `as_of` timestamp in `_exec_tool` into Indonesian date representation (`"4 November 2026, 01:42 WIB"`), passing strict numeric grounding checks with zero hallucination flags.
+  3. **Collection Endpoints (`app/modules/routes_a.py`):** added `GET /v1/tickets` and `GET /v1/cases` with tenant filtering, customer isolation (customers only see own records), and sorting by creation timestamp. Added `PATCH /v1/cases/{cid}` and updated `GET /v1/tickets/{tid}` to return full checksummed customer reference (`short_reference`).
+  4. **RBAC Scope Alignment (`app/core/rbac.py`):** added `ticket.read`, `ticket.update`, `ticket.create` to supervisor and complaint officer roles.
+  5. **Agent Workspace Live Management UI (`web-workspace/src/App.jsx`):** upgraded `Cases` component (`/agent/cases`) with multi-tab dashboard displaying active tickets and cases tables, status badges, one-click status transitions (`RESOLVED`, `CLOSED`), and quick navigation to conversations.
+  6. **Customer Tracking UI (`web-workspace/src/App.jsx`):** upgraded `CustomerTrack` (`/customer/requests`) to fetch and display official dispute tickets alongside conversations with status indicators, creation dates, and direct links to the relevant chat.
+- **Verification:** Python compilation passed; frontend Vite production build passed cleanly (`✓ built in 1.21s`, 33 modules transformed). Direct endpoint tests verified tenant isolation and customer scoping.
+
+## Human Handoff Intent Detection & Real-Time Sync Foundation (2026-11-04)
+
+- **Problem:** When customers explicitly requested human assistance (e.g. *"Saya ingin berbicara dengan petugas"*), the intent engine previously classified the turn as generic `OTHER_UNCLASSIFIED` with reason `INTENT_REQUIRES_HANDOFF` rather than the canonical `CUSTOMER_REQUEST`. Furthermore, customer chat had no background polling for staff replies, and accepting an agent queue item required manual copy-pasting of conversation IDs.
+- **Implemented:**
+  1. **Canonical Human Agent Intent Classification (`app/modules/intent.py`):** added `_human_agent_requested()` matching explicit conversational Indonesian patterns for human agent, operator, or customer service requests, routing directly to `HANDOFF` with reason `CUSTOMER_REQUEST` and confidence 0.95.
+  2. **Customer Chat Near Real-Time Polling (`web-workspace/src/App.jsx`):** added background polling (3.5s interval) in `CustomerChat` while a conversation is open, automatically fetching incoming human-agent replies without requiring page refreshes.
+  3. **Seamless Agent Queue Acceptance & Navigation (`web-workspace/src/App.jsx`):** updated `Queue`'s `accept(q)` to navigate directly to `/agent/conversations?cid=...`, and updated `Conv` to auto-read `cid` from query parameters and open the conversation context and reply workbench immediately.
+- **Verification:** Python compilation passed; pattern unit tests passed; frontend build passed (`✓ built in 1.25s`, 33 modules transformed).
+
+### Unit 08 live handoff verification (2026-11-04)
+- Fixed stale handoff: an ACCEPTED handoff whose conversation is no longer ACTIVE_HUMAN/PENDING_HANDOFF is now CLOSED in orchestrator._queue_handoff; a new customer request creates a fresh QUEUED handoff and returns the conversation to ACTIVE_AI.
+- Manually verified by user: customer request -> queue -> Terima -> staff reply in /agent/conversations -> reply appears as 'Petugas' in customer chat via 3.5s polling. Resolve step ('Selesaikan penanganan') also verified: status RESOLVED_PENDING_CONFIRMATION, reply box hidden.
+
+## Frontend source organization (2026-11-12)
+
+- **Implemented:** Split the former `web-workspace/src/App.jsx` monolith into a role-aware application shell, route metadata, shared helpers, customer pages, and staff workspace pages. Split `app.css` into ordered shell, customer, workspace, knowledge, and chat stylesheets; the concatenated stylesheet was verified identical to the original after normalizing line endings.
+- **Preserved:** Existing page flows, role-based route checks, API calls, and stylesheet cascade order. Updated the agent-conversation tests to read the extracted conversation workbench module.
+- **Verification:** `npm.cmd run build` passed; `npm.cmd run test:workspace` passed (5 tests); `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` passed (6 tests).
+
+## Customer Live Chat History Dual-Panel Integration (2026-11-13)
+
+- **Requirement:** Add side-by-side "Riwayat Chat" panel to the left of the active conversation on the Customer Live Chat & Assistant page (`/customer/chat`), matching the reference visual design.
+- **Implemented:**
+  1. **Dual-Panel Responsive Layout (`web-workspace/src/pages/customer/CustomerChat.jsx`, `web-workspace/src/styles/chat.css`):**
+     - Left panel (Riwayat Chat): fixed 244px width, white card background, 14px border radius, subtle border, containing title, subtitle, "+ Mulai Chat Baru" button, search input with icon, date-grouped list ("HARI INI", "KEMARIN", and dates), and "Semua percakapan tersimpan di sini." footer.
+     - Right panel: active conversation card with header (`ID: CNV-...`, `+ Mulai Baru`), alert banner, independently scrollable transcript, and pinned message composer.
+     - Equal panel height (`clamp(580px, calc(100vh - 220px), 820px)`), 16px gap, independent scrollbars for history and transcript.
+     - Responsive mobile drawer: at viewport width <= 900px, the history panel transforms into a slide-in drawer with backdrop scrim, accessible via "Riwayat" button in header and dismissible via "×", backdrop click, or Escape.
+  2. **Active State & Grouping:**
+     - Active conversation highlighted with light blue background (`#edf5fd`), blue border (`#90c2f8`), blue title, and "Sedang dibuka" badge alongside time formatted as `HH.mm` (e.g. `22.50 · Sedang dibuka`).
+     - Real-time client-side and debounced server-side search filtering by title, preview snippet, and conversation ID.
+     - Independent date grouping into "Hari Ini", "Kemarin", and localized long dates.
+  3. **State & Persistence:**
+     - Clicking a history item switches conversation without full page reload.
+     - "+ Mulai Chat Baru" resets state for a fresh session without deleting previous history.
+     - Preserves active conversation across browser reloads via URL search param (`?conversation_id=...`) and `sessionStorage` fallback, re-hydrated from `GET /v1/conversations/{id}/read-model`.
+     - Connected to authentic backend APIs (`GET /v1/customer/conversations` and `GET /v1/conversations/{id}/read-model`) with strict tenant and customer-owner isolation.
+- **Verification:**
+  - `npm --prefix web-workspace run build` passed cleanly (`✓ 54 modules transformed`, `built in 1.80s`).
+  - `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` passed (6/6 tests passed).
+

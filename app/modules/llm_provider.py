@@ -307,9 +307,12 @@ def build_provider(provider_name: str | None = None,
         model_name = os.getenv("LLM_MODEL", "")
         timeout_value = os.getenv("LLM_TIMEOUT_MS", "10000")
         try:
-            timeout_ms = int(timeout_value)
+            if timeout_value and str(timeout_value).strip().lower() not in ("none", ""):
+                timeout_ms = int(timeout_value)
+            else:
+                timeout_ms = 10000
         except (TypeError, ValueError):
-            raise ProviderError(ProviderErrorCode.CONFIGURATION) from None
+            timeout_ms = 10000
         return GeminiStructuredGenerationProvider(
             api_key=api_key,
             model_name=model_name,

@@ -1,0 +1,22 @@
+JUDUL: Jam Operasional dan Saluran Layanan Pelanggan — NEXORA Teknologi
+KATEGORI: Customer Support & Contact
+VERSI: 1.0
+
+JAM OPERASIONAL LAYANAN:
+1. Dukungan Teknis & Monitoring Sistem (Technical Support)
+   - Waktu Operasional: 24 jam sehari, 7 hari seminggu (24/7) termasuk hari libur nasional.
+   - Layanan: Penanganan insiden server, kendala downtime VM Compute, akses Object Storage, dan gangguan jaringan.
+
+2. Layanan Pelanggan & Administrasi Akun (Customer Service)
+   - Waktu Operasional: Setiap hari Senin hingga Jumat, pukul 08.00 – 17.00 WIB.
+   - Layanan: Konsultasi produk, aktivasi akun, dan bantuan panduan portal.
+
+3. Layanan Billing & Keuangan (Finance)
+   - Waktu Operasional: Setiap hari Senin hingga Jumat, pukul 09.00 – 16.00 WIB.
+   - Layanan: Verifikasi pembayaran, deposit saldo, kompensasi kredit SLA, dan konfirmasi faktur.
+
+SALURAN KONTAK RESMI:
+- Live Chat: Tersedia langsung 24/7 di dashboard pelanggan.
+- Email Dukungan Teknis: support@NEXORA.id
+- Email Billing & Keuangan: billing@NEXORA.id
+- Pengajuan Tiket: Melalui menu Pengaduan Resmi (Ticket) pada Portal Layanan Pelanggan.

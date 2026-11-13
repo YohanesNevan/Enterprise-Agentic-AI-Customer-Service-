@@ -40,7 +40,7 @@ DOC_STATUS_READY = "ready"
 DOC_STATUS_FAILED = "failed"
 _logger = logging.getLogger("eaics.knowledge")
 _logger.setLevel(logging.INFO)
-_SEARCH_STOPWORDS = {"apa", "itu", "yang", "harus", "saya", "lakukan", "jika", "di", "ke", "dari", "dan", "atau", "untuk", "dengan", "pada", "ini", "kepada", "the", "what", "is", "how", "do", "i", "if", "my", "in", "of", "a", "an", "berapa", "bolehkah", "apakah"}
+_SEARCH_STOPWORDS = {"apa", "itu", "yang", "harus", "saya", "lakukan", "jika", "di", "ke", "dari", "dan", "atau", "untuk", "dengan", "pada", "ini", "kepada", "the", "what", "is", "how", "do", "i", "if", "my", "in", "of", "a", "an", "berapa", "bolehkah", "apakah", "jelaskan", "jelasin", "dong", "sih", "deh", "ya", "kan", "ceritakan", "ceritain", "sebutkan", "sebutin", "tolong", "beritahu", "kasih", "tahu", "tau", "info", "informasi", "mengenai", "tentang", "soal", "mohon"}
 
 def _search_terms(value: str) -> list[str]:
     return [word for word in re.findall(r"[\w]+", value.casefold(), flags=re.UNICODE)
@@ -172,6 +172,8 @@ def _normalize_text(text: str) -> str:
     """Normalisasi teks tanpa merusak makna: hapus baris berlebih, spasi ganda, karakter kontrol."""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+    text = text.replace("\t", " ")
+    text = re.sub(r"[ ]{2,}", " ", text)
     lines = [line.strip() for line in text.split("\n")]
     lines = [line for line in lines if line]
     return "\n".join(lines)
@@ -659,10 +661,17 @@ def search_chunks(db: Session, query: str, tenant_id: str, limit: int = 5,
                                                         tenant_id=tenant_id).first()
         if not doc:
             continue
+        doc_name = (doc.original_filename or "").casefold()
+        doc_title = (doc.title or "").casefold()
+        internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt")
+        if any(m in doc_name or m in doc_title for m in internal_markers):
+            continue
+        if re.search(r"(contoh respons|jangan mengarang|kegagalan pencarian knowledge saja|konteks saat alih tangan)", (c.content or "").casefold()):
+            continue
         title_terms = set(_search_terms(doc.title or ""))
         hits = sum(1 for w in words if w in body or w in title_terms)
         score = hits / max(1, len(words)) if words else 0.0
-        if score >= 0.30 and (len(words) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(words) * 0.3 or hits >= 2):
             lang_boost = 0.1 if language == "id" else 0
             scored.append((min(1.0, score + lang_boost), c, doc))
     scored.sort(key=lambda x: -x[0])
@@ -703,7 +712,7 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
         title_terms = set(_search_terms(a.title or ""))
         hits = sum(1 for w in query_terms if w in body or w in title_terms)
         score = hits / max(1, len(query_terms)) if query_terms else 0.0
-        if score >= 0.30 and (len(query_terms) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(query_terms) * 0.3 or hits >= 2):
             lang_boost = 0.1 if a.language == language else 0
             scored.append((score + lang_boost, a, v, "article"))
     # Potongan dokumen siap pakai
@@ -713,12 +722,21 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
             KnowledgeDocumentRow.status == DOC_STATUS_READY).all():
         doc = db.query(KnowledgeDocumentRow).filter_by(document_id=c.document_id).first()
         if not doc: continue
+        if not for_agent:
+            # Saring dokumen internal/SOP bot agar tidak bocor ke pelanggan umum (TRD §7.4 & FR-KM)
+            doc_name = (doc.original_filename or "").casefold()
+            doc_title = (doc.title or "").casefold()
+            internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt")
+            if any(m in doc_name or m in doc_title for m in internal_markers):
+                continue
+            if re.search(r"(contoh respons|jangan mengarang|kegagalan pencarian knowledge saja|konteks saat alih tangan)", (c.content or "").casefold()):
+                continue
         body = (c.content or "").casefold()
         words = query_terms
         title_terms = set(_search_terms(doc.title or ""))
         hits = sum(1 for w in words if w in body or w in title_terms)
         score = hits / max(1, len(words)) if words else 0.0
-        if score >= 0.30 and (len(words) <= 1 or hits >= 2):
+        if hits >= 1 and (score >= 0.20 or hits >= len(words) * 0.3 or hits >= 2):
             lang_boost = 0.1 if language == "id" else 0
             scored.append((score + lang_boost, c, doc, "document"))
     scored.sort(key=lambda x: -x[0])

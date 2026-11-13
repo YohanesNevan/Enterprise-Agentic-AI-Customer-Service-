@@ -312,3 +312,28 @@ Remaining decisions: canonical signed FRD v1.0 and TRD §16 approval; external d
 The earlier diagnostic categorized the live failure as `UNAVAILABLE` but retained no upstream cause. The adapter now maps SDK `google.genai.errors.APIError` using only its numeric `code` and fixed allowlisted `status` value, and maps `httpx.TimeoutException`/`TransportError` by type. New additive `ProviderErrorCode` values are `AUTHENTICATION`, `ACCESS_DENIED`, `RESOURCE_NOT_FOUND`, `CONNECTION_ERROR`, and `PROVIDER_ERROR`; prior values and generic `UNAVAILABLE` fallback remain. HTTP 401, 403, 404, 429, 408/504, 400, and 5xx are distinguishable; corresponding allowlisted RPC statuses are handled as well. 429/`RESOURCE_EXHAUSTED` remains one `RATE_LIMITED` category because the SDK status alone does not prove whether quota or rate limiting caused it. A 404 is reported generically as resource-not-found, not asserted to be model-specific.
 
 No message, details, response body, auth header, URL, or prompt is copied into `ProviderError` or logs. Offline tests construct the installed SDK's `ClientError`, `ServerError`, and `APIError`, plus `httpx` transport errors, and verify safe categories and absence of secret canaries. Focused suite: **55 passed**. No live test/request, orchestrator change, `.env` access, or configuration change occurred.
+
+## Enterprise Agentic AI Transformation Audit (2026-11-10)
+
+Berdasarkan evaluasi terhadap FRD-EAICS-001, TRD-EAICS-001 (§7.4-§7.5, §8.1-§8.9, §16.4), dan slide presentasi mitra PT Viktori Aksara Teknologi Indonesia / UKDW (39 slide):
+1. **Pemisahan Dokumen Internal vs Eksternal (KB Hygiene):**
+   - Dokumen instruksi internal bot (`05_ALIH_TANGAN_CUSTOMER_SERVICE.txt` dan `06_CARA_KERJA_CHATBOT_DAN_SUMBER_JAWABAN.txt`) yang sebelumnya ikut terindeks dan bocor ke pelanggan telah dibersihkan dari database aktif dan difilter pada `app/modules/knowledge.py`.
+2. **Penanganan Typo & Intensi Alih Tangan Manusia:**
+   - Deteksi handoff diperluas dengan toleransi salah ketik umum (seperti *"merbiacara"*) pada `app/modules/intent.py`.
+   - Perbaikan kondisional routing pada `agent_graph.py` agar menangani kedua status `decision == "HUMAN"` dan `decision == "HANDOFF"`, mencegah percakapan dialihkan secara salah ke RAG.
+3. **Pemberantasan Infinite Clarification Loop (TRD §8.2):**
+   - Penambahan `update_context()` pada `triage_node` untuk menghitung `clarification_count`.
+   - Pembuatan respons klarifikasi yang sopan dan manusiawi (`_format_clarification_question`) menggantikan teks mentah pendek.
+   - Penegakan aturan TRD §8.2: jika klarifikasi telah mencapai 2 kali (`clarification_count >= 2`), sistem langsung mengalihkan sesi ke `handoff_node`.
+4. **Eksekusi Aksi Mandiri & Tool Gateway:**
+   - Parameter `Gw.evaluate()` pada `tool_node` diselaraskan dengan kontrak gateway (`tool, args, al, ctx, corr, conv`).
+   - Sesi terautentikasi (AL2) mengeksekusi tool otonom (pemblokiran kartu sementara, pencarian sengketa transaksi dan penerbitan tiket investigasi).
+   - Sesi tanpa autentikasi (AL0) diarahkan secara sopan untuk melakukan login (`STEP_UP_REQUIRED`).
+5. **Human Handoff Context Package (Slide 20 Mitra & TRD §16.4):**
+   - Integrasi `HandoffSvc.build_package()` pada `_queue_handoff()` menyusun ringkasan identitas, konteks percakapan, kronologi keluhan, dan riwayat intent ke antrean staf dengan `package_complete=True`.
+6. **Provider Gemini & F4 Claim Map:**
+   - Konfigurasi model aktif `gemini-3-flash-preview` dengan timeout 18 detik.
+   - Peningkatan pemetaan klaim pada `gemini_provider.py` sehingga setiap kalimat terpetakan ke sumber bukti secara valid dan lolos verifikasi skema `generate_validated()`.
+7. **Verifikasi:**
+   - Lulus 100% test suite `tests/test_agent_graph.py` dan `tests/test_customer_complaints.py`.
+   - Terverifikasi end-to-end pada kelima skenario uji utama (Skenario A hingga E).
