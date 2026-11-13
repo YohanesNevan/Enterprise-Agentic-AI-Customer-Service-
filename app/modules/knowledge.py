@@ -43,7 +43,12 @@ _logger.setLevel(logging.INFO)
 _SEARCH_STOPWORDS = {"apa", "itu", "yang", "harus", "saya", "lakukan", "jika", "di", "ke", "dari", "dan", "atau", "untuk", "dengan", "pada", "ini", "kepada", "the", "what", "is", "how", "do", "i", "if", "my", "in", "of", "a", "an", "berapa", "bolehkah", "apakah", "jelaskan", "jelasin", "dong", "sih", "deh", "ya", "kan", "ceritakan", "ceritain", "sebutkan", "sebutin", "tolong", "beritahu", "kasih", "tahu", "tau", "info", "informasi", "mengenai", "tentang", "soal", "mohon"}
 
 def _search_terms(value: str) -> list[str]:
-    return [word for word in re.findall(r"[\w]+", value.casefold(), flags=re.UNICODE)
+    try:
+        from .intent import normalize_slang
+        val = normalize_slang(value)
+    except Exception:
+        val = value
+    return [word for word in re.findall(r"[\w]+", val.casefold(), flags=re.UNICODE)
             if len(word) > 1 and word not in _SEARCH_STOPWORDS]
 
 def _now(): return datetime.datetime.now(datetime.timezone.utc)
@@ -726,7 +731,7 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
             # Saring dokumen internal/SOP bot agar tidak bocor ke pelanggan umum (TRD §7.4 & FR-KM)
             doc_name = (doc.original_filename or "").casefold()
             doc_title = (doc.title or "").casefold()
-            internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt")
+            internal_markers = ("alih_tangan", "cara_kerja_chatbot", "panduan_sapaan", "internal", "cs_agent", "supervisor", "admin.txt", "management.txt", "qa_analyst.txt", "complaint_officer.txt", "hr_policy", "hr", "probation", "karyawan")
             if any(m in doc_name or m in doc_title for m in internal_markers):
                 continue
             if re.search(r"(contoh respons|jangan mengarang|kegagalan pencarian knowledge saja|konteks saat alih tangan)", (c.content or "").casefold()):

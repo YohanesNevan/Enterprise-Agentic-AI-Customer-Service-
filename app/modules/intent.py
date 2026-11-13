@@ -24,7 +24,11 @@ ACT_T, CLAR_FLOOR = 0.75, 0.45
 KEYWORDS = {
     # Include the exact supported seed-article topic as a phrase. A single
     # broad token ("biaya") otherwise stays in CLARIFY despite a clear query.
-    "INFO_PRODUCT_POLICY": ["biaya", "biaya transfer", "transfer internasional", "fee", "bunga", "syarat", "ketentuan", "policy", "tarif"],
+    "INFO_PRODUCT_POLICY": [
+        "biaya", "biaya transfer", "transfer internasional", "fee", "bunga", "syarat", "ketentuan", "policy", "tarif",
+        "jam operasional", "jam kerja", "operasional", "jadwal", "buka", "tutup", "layanan", "kontak", "alamat",
+        "kantor", "call center", "email", "telepon", "hubungi",
+    ],
     "INFO_ACCOUNT_BALANCE": ["saldo", "balance", "dana tersedia", "sisa uang", "sisa saldo", "cek saldo", "informasi saldo", "saldo rekening"],
     "INFO_TRANSACTION_HISTORY": ["transaksi", "mutasi", "riwayat", "history", "transaction"],
     "INFO_CASE_STATUS": ["status", "tiket", "kasus", "referensi", "reference", "laporan saya"],
@@ -41,6 +45,56 @@ KEYWORDS = {
                              "permisi", "terima kasih", "thanks", "hello", "hi"],
 }
 _contexts: dict[str, dict] = {}
+
+SLANG_MAP: dict[str, str] = {
+    # Kata ganti & Subjek
+    "sya": "saya", "sy": "saya", "aq": "saya", "aku": "saya", "gw": "saya", "gue": "saya", "ogut": "saya",
+    "km": "kamu", "kmu": "kamu", "lu": "kamu", "loe": "kamu", "sampeyan": "kamu",
+    # Kata tanya & bantuan
+    "kpn": "kapan", "kpnn": "kapan",
+    "brp": "berapa", "brapa": "berapa", "berapo": "berapa",
+    "gmn": "bagaimana", "gimana": "bagaimana", "bgmn": "bagaimana", "bgaimana": "bagaimana",
+    "dgn": "dengan", "dg": "dengan", "sm": "sama",
+    "krn": "karena", "karna": "karena", "coz": "karena",
+    "tp": "tapi", "tpi": "tapi",
+    "utk": "untuk", "untk": "untuk",
+    "yg": "yang", "yng": "yang",
+    "bkn": "bukan",
+    "sdh": "sudah", "udh": "sudah", "udah": "sudah", "da": "sudah",
+    "blm": "belum", "blom": "belum", "belom": "belum",
+    "tdk": "tidak", "g": "tidak", "ga": "tidak", "gak": "tidak", "ngga": "tidak", "nggak": "tidak", "tak": "tidak",
+    "bs": "bisa", "bsa": "bisa",
+    "tau": "tahu", "taw": "tahu", "th": "tahu",
+    "mau": "ingin", "pgen": "ingin", "pengen": "ingin", "pingin": "ingin", "ingn": "ingin",
+    "mohon": "tolong", "tlng": "tolong", "tlong": "tolong", "tlg": "tolong",
+    "infonya": "informasi", "info": "informasi",
+    # Typo umum & istilah layanan/perbankan
+    "oprasional": "operasional", "operasionalnya": "operasional", "oprasionalnya": "operasional",
+    "perusahan": "perusahaan", "perushaan": "perusahaan", "prusahaan": "perusahaan",
+    "transfr": "transfer", "trf": "transfer", "tf": "transfer",
+    "rek": "rekening", "rekeningg": "rekening",
+    "saldo": "saldo", "sldo": "saldo",
+    "mutasi": "mutasi", "mutsi": "mutasi",
+    "kmplain": "komplain", "komplen": "komplain", "complain": "komplain",
+    "keluhan": "keluhan", "kluhan": "keluhan",
+    "blokir": "blokir", "blkir": "blokir",
+    "cust": "customer", "cs": "customer service",
+}
+
+
+def normalize_slang(text: str) -> str:
+    """Normalisasi singkatan percakapan, bahasa santai, dan typo umum bahasa Indonesia."""
+    if not text:
+        return ""
+    words = re.findall(r"[\w]+|[^\w\s]", text.casefold())
+    normalized = [SLANG_MAP.get(w, w) for w in words]
+    out = ""
+    for w in normalized:
+        if not out or re.match(r"[^\w\s]", w):
+            out += w
+        else:
+            out += " " + w
+    return out
 
 _GREETING_TOKEN = r"(?:halo|hallo|helo|hello|hai|hay|hi|hii|hey|permisi|selamat\s+(?:pagi|siang|sore|malam|malem))"
 _GREETING_PREFIX = re.compile(rf"^\s*{_GREETING_TOKEN}\b", re.IGNORECASE)
@@ -66,12 +120,12 @@ def _is_greeting_only(text: str) -> bool:
                           "testing ada orang", "ada orang ya", "ada orang di sana"}
 
 def _info_request_phrase(t: str) -> bool:
-    """Imperative information requests ("beritahu saya profil perusahaan") are retrieval questions,
-    not unknown intents. Retrieval + grounding still decide whether an answer or a knowledge-gap handoff follows."""
+    """Imperative information requests ("beritahu saya profil perusahaan", "sya ingin tau jam operasional")"""
+    norm = normalize_slang(t)
     return bool(re.search(
         r"\b(?:beritahu|beri\s+tahu|ceritakan|sebutkan|jelaskan|informasikan|tolong\s+jelaskan|"
         r"saya\s+(?:ingin|mau|butuh)\s+(?:tahu|mengetahui|informasi)|info(?:rmasi)?\s+(?:tentang|mengenai|soal))\b"
-        r"|\b(?:profil|sejarah|visi|misi|latar\s+belakang)\s+(?:perusahaan|bank|kami|ini)\b", t))
+        r"|\b(?:profil|sejarah|visi|misi|latar\s+belakang|jam\s+operasional|operasional|kontak|layanan)\s*(?:perusahaan|bank|kami|ini|layanan)?\b", norm))
 
 
 def _human_agent_requested(text: str) -> bool:
@@ -139,16 +193,18 @@ def vulnerability(text: str) -> tuple[bool, bool, str | None]:
 
 def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
     """Mengembalikan intent primer + sekunder, confidence, decision ACT/CLARIFY/HANDOFF."""
-    scores = {k: _score(text, v) for k, v in KEYWORDS.items()}
+    norm_text = normalize_slang(text)
+    scores = {k: max(_score(text, v), _score(norm_text, v)) for k, v in KEYWORDS.items()}
     ranked = sorted(scores.items(), key=lambda x: -x[1])
     top, top_c = ranked[0]
     second, second_c = ranked[1]
     # Questions asking for information belong to retrieval even when the topic is
     # not in the closed action taxonomy (e.g. "Apa itu NPB?"). Keep explicit
     # complaint, fraud, staff-conduct, and vulnerability routing in control.
-    t = text.casefold().strip()
-    human_action = _human_action_requested(t)
-    human_agent_req = _human_agent_requested(t)
+    t = norm_text.casefold().strip()
+    raw_t = text.casefold().strip()
+    human_action = _human_action_requested(t) or _human_action_requested(raw_t)
+    human_agent_req = _human_agent_requested(t) or _human_agent_requested(raw_t)
     reverse_what_question = bool(re.search(r"\b[\w-]+\s+itu\s+apa[?.!]*$", t))
     generic_question = (top_c < 0.30 and len(t.split()) >= 3 and t.endswith("?")
                         and not human_action)
@@ -158,7 +214,7 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
                                    "kenapa?", "jelaskan ", "maksudnya ", "what ", "how ",
                                    "where ", "why "))
                      or any(p in t for p in ("apa itu ", "apa yang harus saya lakukan", "bagaimana bisa "))
-                     or _info_request_phrase(t)
+                     or _info_request_phrase(t) or _info_request_phrase(raw_t)
                      or reverse_what_question or generic_question)
     forced_intents = {"CMP_FRAUD_SUSPICION", "CMP_STAFF_CONDUCT"}
     dispute_patterns = (
