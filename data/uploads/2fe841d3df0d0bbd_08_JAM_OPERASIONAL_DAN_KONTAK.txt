@@ -1,4 +1,4 @@
-JUDUL: Jam Operasional dan Saluran Layanan Pelanggan — CloudNova Teknologi
+JUDUL: Jam Operasional dan Saluran Layanan Pelanggan — NEXORA Teknologi
 KATEGORI: Customer Support & Contact
 VERSI: 1.0
 
@@ -17,6 +17,6 @@ JAM OPERASIONAL LAYANAN:
 
 SALURAN KONTAK RESMI:
 - Live Chat: Tersedia langsung 24/7 di dashboard pelanggan.
-- Email Dukungan Teknis: support@cloudnova.id
-- Email Billing & Keuangan: billing@cloudnova.id
+- Email Dukungan Teknis: support@NEXORA.id
+- Email Billing & Keuangan: billing@NEXORA.id
 - Pengajuan Tiket: Melalui menu Pengaduan Resmi (Ticket) pada Portal Layanan Pelanggan.

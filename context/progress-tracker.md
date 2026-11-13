@@ -355,3 +355,31 @@ This update supersedes the earlier “Unit 04 specification prepared; implementa
 - Fixed stale handoff: an ACCEPTED handoff whose conversation is no longer ACTIVE_HUMAN/PENDING_HANDOFF is now CLOSED in orchestrator._queue_handoff; a new customer request creates a fresh QUEUED handoff and returns the conversation to ACTIVE_AI.
 - Manually verified by user: customer request -> queue -> Terima -> staff reply in /agent/conversations -> reply appears as 'Petugas' in customer chat via 3.5s polling. Resolve step ('Selesaikan penanganan') also verified: status RESOLVED_PENDING_CONFIRMATION, reply box hidden.
 
+## Frontend source organization (2026-11-12)
+
+- **Implemented:** Split the former `web-workspace/src/App.jsx` monolith into a role-aware application shell, route metadata, shared helpers, customer pages, and staff workspace pages. Split `app.css` into ordered shell, customer, workspace, knowledge, and chat stylesheets; the concatenated stylesheet was verified identical to the original after normalizing line endings.
+- **Preserved:** Existing page flows, role-based route checks, API calls, and stylesheet cascade order. Updated the agent-conversation tests to read the extracted conversation workbench module.
+- **Verification:** `npm.cmd run build` passed; `npm.cmd run test:workspace` passed (5 tests); `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` passed (6 tests).
+
+## Customer Live Chat History Dual-Panel Integration (2026-11-13)
+
+- **Requirement:** Add side-by-side "Riwayat Chat" panel to the left of the active conversation on the Customer Live Chat & Assistant page (`/customer/chat`), matching the reference visual design.
+- **Implemented:**
+  1. **Dual-Panel Responsive Layout (`web-workspace/src/pages/customer/CustomerChat.jsx`, `web-workspace/src/styles/chat.css`):**
+     - Left panel (Riwayat Chat): fixed 244px width, white card background, 14px border radius, subtle border, containing title, subtitle, "+ Mulai Chat Baru" button, search input with icon, date-grouped list ("HARI INI", "KEMARIN", and dates), and "Semua percakapan tersimpan di sini." footer.
+     - Right panel: active conversation card with header (`ID: CNV-...`, `+ Mulai Baru`), alert banner, independently scrollable transcript, and pinned message composer.
+     - Equal panel height (`clamp(580px, calc(100vh - 220px), 820px)`), 16px gap, independent scrollbars for history and transcript.
+     - Responsive mobile drawer: at viewport width <= 900px, the history panel transforms into a slide-in drawer with backdrop scrim, accessible via "Riwayat" button in header and dismissible via "×", backdrop click, or Escape.
+  2. **Active State & Grouping:**
+     - Active conversation highlighted with light blue background (`#edf5fd`), blue border (`#90c2f8`), blue title, and "Sedang dibuka" badge alongside time formatted as `HH.mm` (e.g. `22.50 · Sedang dibuka`).
+     - Real-time client-side and debounced server-side search filtering by title, preview snippet, and conversation ID.
+     - Independent date grouping into "Hari Ini", "Kemarin", and localized long dates.
+  3. **State & Persistence:**
+     - Clicking a history item switches conversation without full page reload.
+     - "+ Mulai Chat Baru" resets state for a fresh session without deleting previous history.
+     - Preserves active conversation across browser reloads via URL search param (`?conversation_id=...`) and `sessionStorage` fallback, re-hydrated from `GET /v1/conversations/{id}/read-model`.
+     - Connected to authentic backend APIs (`GET /v1/customer/conversations` and `GET /v1/conversations/{id}/read-model`) with strict tenant and customer-owner isolation.
+- **Verification:**
+  - `npm --prefix web-workspace run build` passed cleanly (`✓ 54 modules transformed`, `built in 1.80s`).
+  - `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` passed (6/6 tests passed).
+

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const appSource = readFileSync(
+  new URL('../src/pages/workspace/ConversationWorkbench.jsx', import.meta.url),
+  'utf8',
+)
 
 test('agent reply validates, posts through the workspace endpoint, and refreshes the transcript', () => {
   assert.match(appSource, /const content = reply\.trim\(\)/)
@@ -18,7 +21,7 @@ test('agent controls use accepted-owner state and existing conversation transiti
   assert.match(appSource, /\/workspace\/handoffs\/\$\{encodeURIComponent\(d\.handoff\.handoff_id\)\}\/accept/)
   assert.match(appSource, /\/resolve`, \{ method: 'POST', body: \{\} \}/)
   assert.match(appSource, /RESOLVED_PENDING_CONFIRMATION/)
-  assert.match(appSource, /m\.author_type === 'HUMAN_AGENT' \? 'Petugas'/)
+  assert.match(appSource, /m\.author_type === 'HUMAN_AGENT' \? 'Petugas CS'/)
 })
 
 test('existing case and ticket APIs are linked to the currently opened conversation', () => {
