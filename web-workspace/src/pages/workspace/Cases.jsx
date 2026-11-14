@@ -135,14 +135,14 @@ export function Cases({ role }) {
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--line-strong)', color: 'var(--muted)' }}>
                       <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px' }}>No. Ref</th>
-                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '120px' }}>Nasabah</th>
-                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '95px' }}>Tipe</th>
-                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Prioritas</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '110px' }}>Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '110px' }}>Tipe & Antrean</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '70px' }}>Prioritas</th>
                       <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '70px' }}>Status</th>
                       <th style={{ padding: '0.6rem 0.6rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '220px' }}>Deskripsi</th>
-                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '95px' }}>Percakapan</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Chat</th>
                       <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Waktu</th>
-                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '105px' }}>Aksi</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '135px' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -156,6 +156,9 @@ export function Cases({ role }) {
                         </td>
                         <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
                           <span className="badge b-blue" style={{ fontSize: '10px' }}>{t.type}</span>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                            {t.owner_queue || 'GENERAL'}
+                          </div>
                         </td>
                         <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
                           <span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`} style={{ fontSize: '10px' }}>
@@ -186,7 +189,7 @@ export function Cases({ role }) {
                               title={`Buka percakapan ${t.conversation_id}`}
                               onClick={() => navigate(`/agent/conversations?cid=${encodeURIComponent(t.conversation_id)}`)}
                             >
-                              💬 Buka Chat
+                              Chat
                             </button>
                           ) : '-'}
                         </td>
@@ -198,26 +201,24 @@ export function Cases({ role }) {
                             {t.created_at ? new Date(t.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
                           </div>
                         </td>
-                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100px' }}>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                             {t.status === 'OPEN' && (
                               <button
                                 className="btn sm primary"
                                 style={{
                                   height: '24px',
                                   minHeight: '24px',
-                                  padding: '0 6px',
+                                  padding: '0 8px',
                                   fontSize: '11px',
                                   fontWeight: 600,
                                   whiteSpace: 'nowrap',
-                                  borderRadius: '5px',
-                                  width: '100%',
-                                  justifyContent: 'center'
+                                  borderRadius: '5px'
                                 }}
                                 type="button"
                                 onClick={() => updateTicketStatus(t.ticket_id, 'RESOLVED')}
                               >
-                                ✓ Selesaikan
+                                Resolve
                               </button>
                             )}
                             {t.status === 'RESOLVED' && (
@@ -226,18 +227,16 @@ export function Cases({ role }) {
                                 style={{
                                   height: '24px',
                                   minHeight: '24px',
-                                  padding: '0 6px',
+                                  padding: '0 8px',
                                   fontSize: '11px',
                                   fontWeight: 600,
                                   whiteSpace: 'nowrap',
-                                  borderRadius: '5px',
-                                  width: '100%',
-                                  justifyContent: 'center'
+                                  borderRadius: '5px'
                                 }}
                                 type="button"
                                 onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
                               >
-                                Tutup Tiket
+                                Close
                               </button>
                             )}
                             {(role === 'supervisor' || role === 'admin') && (
@@ -246,20 +245,19 @@ export function Cases({ role }) {
                                 style={{
                                   height: '24px',
                                   minHeight: '24px',
-                                  padding: '0 6px',
-                                  fontSize: '10px',
+                                  padding: '0 8px',
+                                  fontSize: '11px',
+                                  fontWeight: 500,
                                   whiteSpace: 'nowrap',
                                   background: 'var(--surface-alt)',
                                   borderColor: 'var(--line-strong)',
-                                  borderRadius: '5px',
-                                  width: '100%',
-                                  justifyContent: 'center'
+                                  borderRadius: '5px'
                                 }}
                                 type="button"
-                                title={`Antrean saat ini: ${t.owner_queue || 'GENERAL'}. Klik untuk alihkan antrean.`}
+                                title={`Current queue: ${t.owner_queue || 'GENERAL'}. Click to reassign.`}
                                 onClick={() => reassignTicket(t.ticket_id)}
                               >
-                                ⇄ Alihkan ({t.owner_queue ? (t.owner_queue.length > 8 ? t.owner_queue.slice(0, 7) + '…' : t.owner_queue) : 'GEN'})
+                                Reassign
                               </button>
                             )}
                           </div>
