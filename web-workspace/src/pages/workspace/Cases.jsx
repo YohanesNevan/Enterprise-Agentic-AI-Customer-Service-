@@ -131,76 +131,121 @@ export function Cases({ role }) {
               <Empty text="Belum ada tiket investigasi yang terdaftar di database." />
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--muted)' }}>
-                      <th style={{ padding: '0.5rem' }}>No. Ref / ID</th>
-                      <th style={{ padding: '0.5rem' }}>Nasabah</th>
-                      <th style={{ padding: '0.5rem' }}>Tipe</th>
-                      <th style={{ padding: '0.5rem' }}>Prioritas</th>
-                      <th style={{ padding: '0.5rem' }}>Status</th>
-                      <th style={{ padding: '0.5rem' }}>Deskripsi</th>
-                      <th style={{ padding: '0.5rem' }}>Percakapan</th>
-                      <th style={{ padding: '0.5rem' }}>Waktu</th>
-                      <th style={{ padding: '0.5rem' }}>Aksi</th>
+                    <tr style={{ borderBottom: '2px solid var(--line-strong)', color: 'var(--muted)' }}>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No. Ref / ID</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipe</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prioritas</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deskripsi</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Percakapan</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Waktu</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '240px' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tickets.map((t) => (
-                      <tr key={t.ticket_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{t.customer_reference || t.ticket_id}</td>
-                        <td style={{ padding: '0.5rem' }}>{t.customer_id || '-'}</td>
-                        <td style={{ padding: '0.5rem' }}><span className="badge b-blue">{t.type}</span></td>
-                        <td style={{ padding: '0.5rem' }}><span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`}>{t.priority}</span></td>
-                        <td style={{ padding: '0.5rem' }}><StateBadge v={t.status} /></td>
-                        <td style={{ padding: '0.5rem', maxWidth: 280 }}>{t.description}</td>
-                        <td style={{ padding: '0.5rem' }}>
+                      <tr key={t.ticket_id} style={{ borderBottom: '1px solid var(--line)' }}>
+                        <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{t.customer_reference || t.ticket_id}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{t.customer_id || '-'}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className="badge b-blue">{t.type}</span></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`}>{t.priority}</span></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={t.status} /></td>
+                        <td style={{ padding: '0.6rem 0.75rem', maxWidth: 280, verticalAlign: 'middle' }}>{t.description}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
                           {t.conversation_id ? (
                             <button
                               className="btn sm"
-                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                              style={{
+                                height: '28px',
+                                minHeight: '28px',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                maxWidth: '170px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                borderRadius: '6px'
+                              }}
                               type="button"
+                              title={`Buka percakapan ${t.conversation_id}`}
                               onClick={() => navigate(`/agent/conversations?cid=${encodeURIComponent(t.conversation_id)}`)}
                             >
                               {t.conversation_id}
                             </button>
                           ) : '-'}
                         </td>
-                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--muted)', verticalAlign: 'middle' }}>
                           {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
-                          {t.status === 'OPEN' && (
-                            <button
-                              className="btn sm primary"
-                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
-                              type="button"
-                              onClick={() => updateTicketStatus(t.ticket_id, 'RESOLVED')}
-                            >
-                              Selesaikan
-                            </button>
-                          )}
-                          {t.status === 'RESOLVED' && (
-                            <button
-                              className="btn sm"
-                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
-                              type="button"
-                              onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
-                            >
-                              Tutup
-                            </button>
-                          )}
-                          {(role === 'supervisor' || role === 'admin') && (
-                            <button
-                              className="btn sm"
-                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', marginLeft: 4 }}
-                              type="button"
-                              title="Tugaskan ulang antrean"
-                              onClick={() => reassignTicket(t.ticket_id)}
-                            >
-                              Reassign ({t.owner_queue || 'GENERAL'})
-                            </button>
-                          )}
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                            {t.status === 'OPEN' && (
+                              <button
+                                className="btn sm primary"
+                                style={{
+                                  height: '28px',
+                                  minHeight: '28px',
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                  borderRadius: '6px'
+                                }}
+                                type="button"
+                                onClick={() => updateTicketStatus(t.ticket_id, 'RESOLVED')}
+                              >
+                                ✓ Selesaikan
+                              </button>
+                            )}
+                            {t.status === 'RESOLVED' && (
+                              <button
+                                className="btn sm"
+                                style={{
+                                  height: '28px',
+                                  minHeight: '28px',
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                  borderRadius: '6px'
+                                }}
+                                type="button"
+                                onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
+                              >
+                                Tutup Tiket
+                              </button>
+                            )}
+                            {(role === 'supervisor' || role === 'admin') && (
+                              <button
+                                className="btn sm"
+                                style={{
+                                  height: '28px',
+                                  minHeight: '28px',
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  whiteSpace: 'nowrap',
+                                  background: 'var(--surface)',
+                                  borderColor: 'var(--line-strong)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  borderRadius: '6px'
+                                }}
+                                type="button"
+                                title={`Antrean saat ini: ${t.owner_queue || 'GENERAL'}. Klik untuk alihkan antrean.`}
+                                onClick={() => reassignTicket(t.ticket_id)}
+                              >
+                                <span>⇄ Alihkan</span>
+                                <span className="badge b-gray" style={{ fontSize: '9px', padding: '1px 5px', fontWeight: 700 }}>
+                                  {t.owner_queue || 'GENERAL'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -217,37 +262,45 @@ export function Cases({ role }) {
               <Empty text="Belum ada kasus yang terdaftar." />
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--muted)' }}>
-                      <th style={{ padding: '0.5rem' }}>No. Kasus</th>
-                      <th style={{ padding: '0.5rem' }}>Nasabah</th>
-                      <th style={{ padding: '0.5rem' }}>Kategori</th>
-                      <th style={{ padding: '0.5rem' }}>Severity</th>
-                      <th style={{ padding: '0.5rem' }}>Status</th>
-                      <th style={{ padding: '0.5rem' }}>Status Nasabah</th>
-                      <th style={{ padding: '0.5rem' }}>Antrean</th>
-                      <th style={{ padding: '0.5rem' }}>Waktu Masuk</th>
-                      <th style={{ padding: '0.5rem' }}>Tindakan</th>
+                    <tr style={{ borderBottom: '2px solid var(--line-strong)', color: 'var(--muted)' }}>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No. Kasus</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Kategori</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Severity</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Antrean</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Waktu Masuk</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '100px' }}>Tindakan</th>
                     </tr>
                   </thead>
                   <tbody>
                     {casesList.map((c) => (
-                      <tr key={c.case_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{c.customer_reference || c.case_id}</td>
-                        <td style={{ padding: '0.5rem' }}>{c.customer_id || '-'}</td>
-                        <td style={{ padding: '0.5rem' }}><span className="badge b-blue">{c.category}</span></td>
-                        <td style={{ padding: '0.5rem' }}><Sev v={c.severity_confirmed || c.severity_proposed} /></td>
-                        <td style={{ padding: '0.5rem' }}><StateBadge v={c.status} /></td>
-                        <td style={{ padding: '0.5rem' }}><StateBadge v={c.customer_visible_status} /></td>
-                        <td style={{ padding: '0.5rem' }}>{c.owner_queue}</td>
-                        <td style={{ padding: '0.5rem', whiteSpace: 'nowrap', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                      <tr key={c.case_id} style={{ borderBottom: '1px solid var(--line)' }}>
+                        <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{c.customer_reference || c.case_id}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{c.customer_id || '-'}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className="badge b-blue">{c.category}</span></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><Sev v={c.severity_confirmed || c.severity_proposed} /></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={c.status} /></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={c.customer_visible_status} /></td>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>{c.owner_queue}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--muted)', verticalAlign: 'middle' }}>
                           {c.logged_at ? new Date(c.logged_at).toLocaleString('id-ID') : '-'}
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
+                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
                           <button
                             className="btn sm"
-                            style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                            style={{
+                              height: '28px',
+                              minHeight: '28px',
+                              padding: '4px 12px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              borderRadius: '6px'
+                            }}
                             type="button"
                             onClick={() => {
                               setCx((prev) => ({ ...prev, case_id: c.case_id }))
@@ -255,7 +308,7 @@ export function Cases({ role }) {
                               setActiveTab('manage')
                             }}
                           >
-                            Kelola
+                            Kelola →
                           </button>
                         </td>
                       </tr>
