@@ -134,66 +134,85 @@ export function Cases({ role }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--line-strong)', color: 'var(--muted)' }}>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No. Ref / ID</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nasabah</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipe</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prioritas</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deskripsi</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Percakapan</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Waktu</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '240px' }}>Aksi</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px' }}>No. Ref</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '120px' }}>Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '95px' }}>Tipe</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Prioritas</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '70px' }}>Status</th>
+                      <th style={{ padding: '0.6rem 0.6rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '220px' }}>Deskripsi</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '95px' }}>Percakapan</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Waktu</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '105px' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tickets.map((t) => (
                       <tr key={t.ticket_id} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{t.customer_reference || t.ticket_id}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{t.customer_id || '-'}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className="badge b-blue">{t.type}</span></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`}>{t.priority}</span></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={t.status} /></td>
-                        <td style={{ padding: '0.6rem 0.75rem', maxWidth: 280, verticalAlign: 'middle' }}>{t.description}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '0.6rem 0.5rem', fontWeight: 700, verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)' }}>
+                          {t.customer_reference || t.ticket_id}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--ink-soft)' }}>
+                          {t.customer_id || '-'}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <span className="badge b-blue" style={{ fontSize: '10px' }}>{t.type}</span>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <span className={`badge ${t.priority === 'HIGH' || t.priority === 'URGENT' ? 'b-amber' : 'b-gray'}`} style={{ fontSize: '10px' }}>
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <StateBadge v={t.status} />
+                        </td>
+                        <td style={{ padding: '0.6rem 0.6rem', verticalAlign: 'middle', lineHeight: 1.5, color: 'var(--ink)' }}>
+                          {t.description}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           {t.conversation_id ? (
                             <button
                               className="btn sm"
                               style={{
-                                height: '28px',
-                                minHeight: '28px',
-                                padding: '3px 8px',
+                                height: '24px',
+                                minHeight: '24px',
+                                padding: '0 8px',
                                 fontSize: '11px',
-                                fontFamily: 'var(--font-mono)',
-                                maxWidth: '170px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                borderRadius: '6px'
+                                borderRadius: '5px',
+                                background: 'var(--surface-alt)',
+                                border: '1px solid var(--line)',
+                                whiteSpace: 'nowrap'
                               }}
                               type="button"
                               title={`Buka percakapan ${t.conversation_id}`}
                               onClick={() => navigate(`/agent/conversations?cid=${encodeURIComponent(t.conversation_id)}`)}
                             >
-                              {t.conversation_id}
+                              💬 Buka Chat
                             </button>
                           ) : '-'}
                         </td>
-                        <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--muted)', verticalAlign: 'middle' }}>
-                          {t.created_at ? new Date(t.created_at).toLocaleString('id-ID') : '-'}
+                        <td style={{ padding: '0.6rem 0.5rem', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ink-soft)' }}>
+                            {t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                            {t.created_at ? new Date(t.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </div>
                         </td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100px' }}>
                             {t.status === 'OPEN' && (
                               <button
                                 className="btn sm primary"
                                 style={{
-                                  height: '28px',
-                                  minHeight: '28px',
-                                  padding: '4px 10px',
+                                  height: '24px',
+                                  minHeight: '24px',
+                                  padding: '0 6px',
                                   fontSize: '11px',
                                   fontWeight: 600,
                                   whiteSpace: 'nowrap',
-                                  borderRadius: '6px'
+                                  borderRadius: '5px',
+                                  width: '100%',
+                                  justifyContent: 'center'
                                 }}
                                 type="button"
                                 onClick={() => updateTicketStatus(t.ticket_id, 'RESOLVED')}
@@ -205,13 +224,15 @@ export function Cases({ role }) {
                               <button
                                 className="btn sm"
                                 style={{
-                                  height: '28px',
-                                  minHeight: '28px',
-                                  padding: '4px 10px',
+                                  height: '24px',
+                                  minHeight: '24px',
+                                  padding: '0 6px',
                                   fontSize: '11px',
                                   fontWeight: 600,
                                   whiteSpace: 'nowrap',
-                                  borderRadius: '6px'
+                                  borderRadius: '5px',
+                                  width: '100%',
+                                  justifyContent: 'center'
                                 }}
                                 type="button"
                                 onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
@@ -223,26 +244,22 @@ export function Cases({ role }) {
                               <button
                                 className="btn sm"
                                 style={{
-                                  height: '28px',
-                                  minHeight: '28px',
-                                  padding: '4px 10px',
-                                  fontSize: '11px',
+                                  height: '24px',
+                                  minHeight: '24px',
+                                  padding: '0 6px',
+                                  fontSize: '10px',
                                   whiteSpace: 'nowrap',
-                                  background: 'var(--surface)',
+                                  background: 'var(--surface-alt)',
                                   borderColor: 'var(--line-strong)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  borderRadius: '6px'
+                                  borderRadius: '5px',
+                                  width: '100%',
+                                  justifyContent: 'center'
                                 }}
                                 type="button"
                                 title={`Antrean saat ini: ${t.owner_queue || 'GENERAL'}. Klik untuk alihkan antrean.`}
                                 onClick={() => reassignTicket(t.ticket_id)}
                               >
-                                <span>⇄ Alihkan</span>
-                                <span className="badge b-gray" style={{ fontSize: '9px', padding: '1px 5px', fontWeight: 700 }}>
-                                  {t.owner_queue || 'GENERAL'}
-                                </span>
+                                ⇄ Alihkan ({t.owner_queue ? (t.owner_queue.length > 8 ? t.owner_queue.slice(0, 7) + '…' : t.owner_queue) : 'GEN'})
                               </button>
                             )}
                           </div>
@@ -265,41 +282,60 @@ export function Cases({ role }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--line-strong)', color: 'var(--muted)' }}>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No. Kasus</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nasabah</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Kategori</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Severity</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status Nasabah</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Antrean</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Waktu Masuk</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '100px' }}>Tindakan</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '90px' }}>No. Kasus</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '120px' }}>Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '110px' }}>Kategori</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Severity</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '70px' }}>Status</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '85px' }}>Status Nasabah</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>Antrean</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '75px' }}>Waktu</th>
+                      <th style={{ padding: '0.6rem 0.5rem', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>Tindakan</th>
                     </tr>
                   </thead>
                   <tbody>
                     {casesList.map((c) => (
                       <tr key={c.case_id} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{c.customer_reference || c.case_id}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{c.customer_id || '-'}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><span className="badge b-blue">{c.category}</span></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><Sev v={c.severity_confirmed || c.severity_proposed} /></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={c.status} /></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}><StateBadge v={c.customer_visible_status} /></td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>{c.owner_queue}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--muted)', verticalAlign: 'middle' }}>
-                          {c.logged_at ? new Date(c.logged_at).toLocaleString('id-ID') : '-'}
+                        <td style={{ padding: '0.6rem 0.5rem', fontWeight: 700, verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)' }}>
+                          {c.customer_reference || c.case_id}
                         </td>
-                        <td style={{ padding: '0.6rem 0.75rem', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--ink-soft)' }}>
+                          {c.customer_id || '-'}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <span className="badge b-blue" style={{ fontSize: '10px' }}>{c.category}</span>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <Sev v={c.severity_confirmed || c.severity_proposed} />
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <StateBadge v={c.status} />
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
+                          <StateBadge v={c.customer_visible_status} />
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle', fontSize: '11px' }}>
+                          {c.owner_queue}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ink-soft)' }}>
+                            {c.logged_at ? new Date(c.logged_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                            {c.logged_at ? new Date(c.logged_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.5rem', verticalAlign: 'middle' }}>
                           <button
                             className="btn sm"
                             style={{
-                              height: '28px',
-                              minHeight: '28px',
-                              padding: '4px 12px',
+                              height: '24px',
+                              minHeight: '24px',
+                              padding: '0 10px',
                               fontSize: '11px',
                               fontWeight: 600,
                               whiteSpace: 'nowrap',
-                              borderRadius: '6px'
+                              borderRadius: '5px'
                             }}
                             type="button"
                             onClick={() => {
