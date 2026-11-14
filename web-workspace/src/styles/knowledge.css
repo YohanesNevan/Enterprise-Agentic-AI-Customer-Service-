@@ -40,6 +40,115 @@
 .km-pill:hover { border-color: var(--brand-accent); color: var(--ink); }
 .km-pill.active { background: var(--ink); color: #ffffff; border-color: var(--ink); }
 
+/* Dedicated View Breadcrumb & Top Bar */
+.km-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.km-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--electric-blue);
+  background: var(--brand-soft);
+  border: 1px solid rgba(0, 106, 210, 0.2);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.km-back-btn:hover {
+  background: var(--electric-blue);
+  color: #ffffff;
+  border-color: var(--electric-blue);
+  transform: translateX(-2px);
+}
+
+/* Centered Delete Confirmation Modal Dialog */
+.km-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 27, 44, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  animation: fade-in 0.2s ease;
+}
+.km-modal-dialog {
+  width: min(520px, 100%);
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(14, 27, 44, 0.25);
+  border: 1px solid var(--line);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.km-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.km-modal-icon-danger {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex: none;
+  border: 1px solid rgba(228, 0, 20, 0.25);
+}
+.km-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.km-modal-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.km-modal-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.km-modal-alert {
+  padding: 12px 14px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(228, 0, 20, 0.25);
+  border-radius: var(--radius-sm);
+  color: #8e000d;
+  font-size: 12px;
+  margin-top: 10px;
+}
+.km-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
 @media (max-width: 900px) {
   .km-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
