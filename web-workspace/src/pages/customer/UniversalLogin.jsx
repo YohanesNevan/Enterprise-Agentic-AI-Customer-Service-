@@ -66,11 +66,22 @@ export function UniversalLogin() {
               className="btn secondary"
               style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem', cursor: 'pointer' }}
               onClick={() => {
-                setUsername('kb.staff')
-                setPassword('L5Tz88EhNmxZsRshdqsI0DrMKipGf9dw')
+                setUsername('supervisor_dev')
+                setPassword('SupervisorPassword1234567890')
               }}
             >
-              Autofill Staf CS (kb.staff)
+              Autofill Supervisor
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem', cursor: 'pointer' }}
+              onClick={() => {
+                setUsername('officer_dev')
+                setPassword('OfficerPassword1234567890')
+              }}
+            >
+              Autofill Complaint Officer
             </button>
           </div>
           <label>
