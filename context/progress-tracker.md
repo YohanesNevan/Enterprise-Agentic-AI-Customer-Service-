@@ -41,18 +41,27 @@ Complete and verify the customer conversation journey; production identity remai
   3. Frontend Staff Workspace UI (`web-workspace/src/App.jsx`): Rendered the rich **Handoff Context Package Card** with 3 distinct operational zones (Profil & Status, Analisis & Kronologi Masalah AI, Riwayat Tools & Rekomendasi Tindakan Petugas) and enhanced Queue table with intent badges and completeness indicators.
   4. Verified Test Suites: Added `tests/test_workspace_read_model.py` (access control, handoff package schema, enriched queue items). Fixed test helper token lifetime alignment (900s for human tokens) in `tests/auth_helpers.py`. Full regression test suite passed 15/15 (100% pass) and Vite frontend built cleanly.
 
+- Completed Unit 09: Supervisor and Complaint Officer Operations (`context/specs/09-supervisor-complaint-officer.md`):
+  1. Escalation Monitoring API (`GET /v1/workspace/escalations` & `POST /v1/workspace/escalations/{eid}/acknowledge`): Implemented DB-persisted escalation lifecycle (`EscalationRow` in `app/modules/escalation.py`) with role-scoped filtering for `supervisor` (Level L1) and `complaint_officer` (Level L2).
+  2. Live SLA Risk Monitor API (`GET /v1/workspace/sla/records`): Computes time elapsed/remaining, detecting and flagging `AT_RISK` (< 2 hours remaining) and `BREACHED` SLA commitments across tickets and cases.
+  3. Ticket Reassignment API (`PATCH /v1/tickets/{tid}/assign`): Allows supervisors and officers to reassign tickets to specialist queues or staff with audit tracking.
+  4. Complaint Adjudication API (`POST /v1/cases/{cid}/adjudicate`): Empowers Complaint Officers to formally adjudicate customer disputes (`UPHELD`, `REJECTED`, `SETTLED`) with compensation and automatic SLA completion (`state="MET"`).
+  5. Dedicated Frontend Workspaces: Built `ComplaintOfficer.jsx` (mapped to `/complaints`) with customer disputes feed and adjudication panel; enhanced `Cases.jsx` with ticket reassignment, and updated `SLA.jsx` with real-time SLA risk monitoring table.
+  6. Automated Verification: Added `tests/test_supervisor_officer.py` (5/5 passed). Full regression suite passed 14/14 (100% pass) and Vite frontend compiled cleanly (53 modules transformed).
+
 ## Current status
 
 - Unit 03 completed and verified per `context/specs/03-role-navigation-shell.md`.
 - Unit 04 local customer login, API, UI integration and regression tests are implemented. Production identity and schema migration remain gated.
 - Unit 06 and Unit 07 customer complaints and tracking completed and verified.
 - Unit 08 Agent Workspace Read Model & Queue completed and verified.
+- Unit 09 Supervisor and Complaint Officer Operations completed and verified.
 
 ## Next tasks
 
-1. Unit 09: Staff Response & Conversation Wrap-up (CS Agent conversation handling, wrap-up classification, customer feedback collection).
-2. Unit 10: Multi-channel Ingestion Adapters (WhatsApp / Email / Webhook ingestion bridges).
-3. Unit 11: Case & Evidence Management Lifecycle (Adjudication, document verification, multi-department case escalation).
+1. Unit 10: Multi-channel Ingestion Adapters / Approval Workflow UI (Tool execution dual-custody boundary).
+2. Unit 11: Knowledge Lifecycle and Manager Workspace (Version transitions, verification, review states).
+3. Unit 12: QA Review Workspace and Evaluation Provenance.
 
 ## Open questions
 

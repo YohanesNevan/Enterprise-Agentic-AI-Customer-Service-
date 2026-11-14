@@ -10,6 +10,7 @@ export const STAFF_ROUTES = Object.freeze({
     ['/supervisor', 'Dashboard Operasional'],
     ['/supervisor/queue', 'Queue & Handoff'],
     ['/supervisor/cases', 'Tickets & Cases'],
+    ['/complaints', 'Complaint Adjudication'],
     ['/supervisor/approvals', 'Approval Requests'],
     ['/supervisor/sla', 'SLA Monitoring'],
     ['/supervisor/audit', 'Audit Trail'],

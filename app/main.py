@@ -552,3 +552,150 @@ async def ws_read_model(conv_id: str, ctx=Depends(require_perm("conversation.rea
                 "read_model_version": "1.0"}
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Unit 09: Supervisor & Complaint Officer Operations
+# ---------------------------------------------------------------------------
+@app.get("/v1/workspace/escalations")
+async def ws_escalations(role_target: str | None = None, ctx=Depends(require_perm("sla.read"))):
+    """Retrieve escalations filtered for supervisor or complaint officer."""
+    if ctx["role"] not in {"supervisor", "complaint_officer", "admin", "management"}:
+        raise _forbidden(ctx["role"], "escalation.read")
+    db = SessionLocal()
+    try:
+        from .modules import escalation as EscSvc
+        target = role_target or ("SUPERVISOR" if ctx["role"] == "supervisor" else ("COMPLAINT_OFFICER" if ctx["role"] == "complaint_officer" else None))
+        items = EscSvc.list_escalations_db(db, target_role=target, tenant_id=ctx["tenant_id"])
+        return {"items": items, "count": len(items)}
+    finally:
+        db.close()
+
+
+@app.post("/v1/workspace/escalations/{eid}/acknowledge")
+async def ws_ack_escalation(eid: str, request: Request, ctx=Depends(require_human_perm("sla.read"))):
+    """Acknowledge an escalation alert."""
+    if ctx["role"] not in {"supervisor", "complaint_officer", "admin"}:
+        raise _forbidden(ctx["role"], "escalation.acknowledge")
+    db = SessionLocal()
+    try:
+        from .modules import escalation as EscSvc
+        res = EscSvc.acknowledge_escalation_db(db, eid, ctx["actor_id"], request.state.correlation_id, ctx["tenant_id"])
+        if not res:
+            raise AppError("E_NOT_FOUND", "escalation not found", customer_message_id="ESCALATION.NOT_FOUND")
+        return res
+    finally:
+        db.close()
+
+
+@app.get("/v1/workspace/sla/records")
+async def ws_sla_records(status: str | None = None, ctx=Depends(require_perm("sla.read"))):
+    """Retrieve active SLA records and impending breach alerts."""
+    if ctx["role"] not in {"supervisor", "complaint_officer", "cs_agent", "admin", "management"}:
+        raise _forbidden(ctx["role"], "sla.read")
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        query = db.query(_models.SlaRecordRow).filter_by(tenant_id=ctx["tenant_id"])
+        if status:
+            query = query.filter(_models.SlaRecordRow.state == status.upper())
+        records = query.order_by(_models.SlaRecordRow.resolution_due_at.asc()).limit(100).all()
+        items = []
+        for r in records:
+            reso_due = r.resolution_due_at
+            if reso_due.tzinfo is None:
+                reso_due = reso_due.replace(tzinfo=timezone.utc)
+            remaining_mins = int((reso_due - now).total_seconds() / 60)
+            is_breached = (now > reso_due and r.state not in ("MET", "PAUSED"))
+            is_at_risk = (not is_breached and remaining_mins <= 120 and r.state == "RUNNING")
+            effective_state = "BREACHED" if is_breached else ("AT_RISK" if is_at_risk else r.state)
+            items.append({
+                "sla_id": r.sla_id,
+                "object_type": r.object_type,
+                "object_id": r.object_id,
+                "state": effective_state,
+                "started_at": r.started_at.isoformat() if r.started_at else "",
+                "first_response_due_at": r.first_response_due_at.isoformat() if r.first_response_due_at else "",
+                "resolution_due_at": r.resolution_due_at.isoformat() if r.resolution_due_at else "",
+                "remaining_minutes": remaining_mins,
+                "is_breached": is_breached,
+                "is_at_risk": is_at_risk,
+            })
+        return {"items": items, "count": len(items)}
+    finally:
+        db.close()
+
+
+@app.patch("/v1/tickets/{tid}/assign")
+async def ws_reassign_ticket(tid: str, body: dict, request: Request, ctx=Depends(require_human_perm("ticket.update"))):
+    """Supervisor ticket assignment and queue transfer."""
+    if ctx["role"] not in {"supervisor", "complaint_officer", "admin"}:
+        raise _forbidden(ctx["role"], "ticket.assign")
+    owner_queue = body.get("owner_queue")
+    if not owner_queue or not str(owner_queue).strip():
+        raise AppError("E_VALIDATION", "owner_queue is required", customer_message_id="TICKET.QUEUE_REQUIRED")
+    db = SessionLocal()
+    try:
+        ticket = db.query(_models.TicketRow).filter_by(ticket_id=tid, tenant_id=ctx["tenant_id"]).first()
+        if not ticket:
+            raise AppError("E_NOT_FOUND", "ticket not found", customer_message_id="TICKET.NOT_FOUND")
+        old_queue = ticket.owner_queue
+        ticket.owner_queue = str(owner_queue).strip()
+        db.commit()
+        audit_svc.emit(ctx["tenant_id"], request.state.correlation_id, "STAFF", ctx["actor_id"],
+                       "ticket.reassigned", "ticket", tid, "ticket-svc",
+                       before={"owner_queue": old_queue}, after={"owner_queue": ticket.owner_queue, "reason": body.get("reason", "")})
+        return {
+            "ticket_id": tid,
+            "owner_queue": ticket.owner_queue,
+            "status": ticket.status,
+            "updated_by": ctx["actor_id"],
+        }
+    finally:
+        db.close()
+
+
+@app.post("/v1/cases/{cid}/adjudicate")
+async def ws_adjudicate_case(cid: str, body: dict, request: Request, ctx=Depends(require_human_perm("case.close"))):
+    """Complaint Officer formal case adjudication and dispute settlement."""
+    if ctx["role"] not in {"complaint_officer", "supervisor"}:
+        raise _forbidden(ctx["role"], "case.adjudicate")
+    decision = (body.get("decision") or "").upper()
+    if decision not in {"UPHELD", "REJECTED", "SETTLED"}:
+        raise AppError("E_VALIDATION", "decision must be UPHELD, REJECTED, or SETTLED", customer_message_id="CASE.DECISION_INVALID")
+    db = SessionLocal()
+    try:
+        case_obj = db.query(_models.CaseRow).filter_by(case_id=cid, tenant_id=ctx["tenant_id"]).first()
+        if not case_obj:
+            raise AppError("E_NOT_FOUND", "case not found", customer_message_id="CASE.NOT_FOUND")
+        now = datetime.now(timezone.utc)
+        case_obj.status = "RESOLVED" if decision != "REJECTED" else "CLOSED"
+        case_obj.customer_visible_status = "RESOLVED" if decision != "REJECTED" else "CLOSED"
+        case_obj.severity_confirmed = case_obj.severity_proposed
+        
+        # Mark corresponding SLA record as MET
+        sla_rec = db.query(_models.SlaRecordRow).filter_by(object_id=cid, tenant_id=ctx["tenant_id"]).first()
+        if sla_rec:
+            sla_rec.state = "MET"
+        
+        db.commit()
+        audit_svc.emit(ctx["tenant_id"], request.state.correlation_id, "STAFF", ctx["actor_id"],
+                       "case.adjudicated", "case", cid, "complaint-svc",
+                       after={
+                           "decision": decision,
+                           "compensation_amount": body.get("compensation_amount"),
+                           "notes": body.get("notes", ""),
+                           "customer_explanation": body.get("customer_explanation", ""),
+                       })
+        return {
+            "case_id": cid,
+            "customer_reference": case_obj.customer_reference,
+            "adjudication_decision": decision,
+            "status": case_obj.status,
+            "customer_visible_status": case_obj.customer_visible_status,
+            "adjudicated_by": ctx["actor_id"],
+            "adjudicated_at": now.isoformat(),
+        }
+    finally:
+        db.close()
+

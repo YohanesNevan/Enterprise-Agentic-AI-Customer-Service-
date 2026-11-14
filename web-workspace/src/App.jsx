@@ -35,6 +35,7 @@ import Analytics from './pages/workspace/Analytics.jsx'
 import SLA from './pages/workspace/SLA.jsx'
 import Audit from './pages/workspace/Audit.jsx'
 import KnowledgeManager from './pages/workspace/KnowledgeManager.jsx'
+import ComplaintOfficer from './pages/workspace/ComplaintOfficer.jsx'
 
 /* ================= App ================= */
 export default function App() {
@@ -99,6 +100,7 @@ export default function App() {
     : route?.page === 'sla' ? SLA
     : route?.page === 'audit' ? Audit
     : route?.page === 'knowledge' ? KnowledgeManager
+    : route?.page === 'complaints' ? ComplaintOfficer
     : null
 
   const customerShell = isPublic || customerRoute

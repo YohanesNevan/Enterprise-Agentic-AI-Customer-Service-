@@ -63,6 +63,22 @@ export function Cases({ role }) {
     }
   }
 
+  const reassignTicket = async (tid) => {
+    const newQueue = window.prompt("Tentukan antrean / spesialis baru untuk tiket ini:", "SPECIALIST_TIER2")
+    if (!newQueue) return
+    setE(null)
+    try {
+      await req(`/v1/tickets/${encodeURIComponent(tid)}/assign`, {
+        method: 'PATCH',
+        role,
+        body: { owner_queue: newQueue, reason: "Tugaskan ulang oleh supervisor" }
+      })
+      await loadLists()
+    } catch (err) {
+      setE(err)
+    }
+  }
+
   const mkTicket = () => run(() => req('/v1/tickets', { method: 'POST', role, body: { ...ct } }).then((r) => { resetCt(); return r }))
   const mkCase = () => run(() => req('/v1/cases', { method: 'POST', role, body: { ...cc } }).then((r) => { resetCc(); return r }))
   const close = () => run(() => req(`/v1/cases/${cx.case_id}/close`, { method: 'POST', role, body: { checklist: check } }))
@@ -172,6 +188,17 @@ export function Cases({ role }) {
                               onClick={() => updateTicketStatus(t.ticket_id, 'CLOSED')}
                             >
                               Tutup
+                            </button>
+                          )}
+                          {(role === 'supervisor' || role === 'admin') && (
+                            <button
+                              className="btn sm"
+                              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', marginLeft: 4 }}
+                              type="button"
+                              title="Tugaskan ulang antrean"
+                              onClick={() => reassignTicket(t.ticket_id)}
+                            >
+                              Reassign ({t.owner_queue || 'GENERAL'})
                             </button>
                           )}
                         </td>

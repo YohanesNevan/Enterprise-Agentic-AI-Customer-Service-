@@ -26,7 +26,7 @@ export const ROUTES = {
   '/supervisor/approvals': { title: 'Approval Requests (Dual Custody)', audience: 'supervisor', page: 'approvals' },
   '/supervisor/sla': { title: 'SLA Monitoring & Notifications', audience: 'supervisor', page: 'sla' },
   '/supervisor/audit': { title: 'Audit Trail & Compliance', audience: 'supervisor', page: 'audit' },
-  '/complaints': { title: 'Complaint & Dispute Officer', audience: 'complaint_officer', unit: '09' },
+  '/complaints': { title: 'Complaint & Dispute Officer', audience: ['complaint_officer', 'supervisor'], page: 'complaints' },
   '/knowledge': { title: 'Knowledge Base Manager', audience: KNOWLEDGE_WORKSPACE_ROLES, page: 'knowledge' },
   '/qa': { title: 'QA Review & Quality Assurance', audience: 'qa_analyst', page: 'qa' },
   '/management': { title: 'Executive Analytics & Performance', audience: 'management', page: 'analytics' },
