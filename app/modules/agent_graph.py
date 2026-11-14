@@ -117,6 +117,40 @@ def triage_node(state: AgentState) -> dict[str, Any]:
 
     # 3. Intent classification & Context Tracking (TRD §8.2)
     cls = IntentSvc.classify(text, conv_id, corr)
+
+    # Agentic LLM Semantic Triage for Slang / Typos / Low Confidence:
+    # If rule-based confidence is low (< 0.75) or unclassified, analyze semantics dynamically with Gemini F1
+    if (cls.get("confidence", 0) < 0.75 or cls.get("intent_code") == "OTHER_UNCLASSIFIED") and not cls.get("safety_flag") and not cls.get("vulnerability_flag"):
+        from .intent import _human_agent_requested, _human_action_requested, CATEGORY
+        if not _human_agent_requested(text) and not _human_action_requested(text):
+            try:
+                import os
+                from .llm_provider import build_provider, generate_validated, LLMFunction, F1Input, F1Output
+                if os.getenv("LLM_PROVIDER") == "gemini" and os.getenv("LLM_API_KEY"):
+                    provider = build_provider()
+                    f1_out = generate_validated(
+                        provider,
+                        LLMFunction.F1,
+                        F1Input(message=text, short_context=f"conversation_id={conv_id}"),
+                        timeout_ms=10000,
+                    )
+                    if isinstance(f1_out, F1Output):
+                        ic = f1_out.intent_code.value
+                        conf = float(f1_out.confidence_hint)
+                        dec = "ACT" if conf >= 0.75 else ("CLARIFY" if conf >= 0.45 else "HANDOFF")
+                        entities = f1_out.entities.model_dump(exclude_none=True) if hasattr(f1_out.entities, "model_dump") else {}
+                        cls = {
+                            "intent_code": ic,
+                            "category": CATEGORY.get(ic, "INQUIRY"),
+                            "confidence": conf,
+                            "decision": dec,
+                            "entities": entities,
+                            "multi": [],
+                            "routing_reason": "AGENTIC_LLM_SEMANTIC_ANALYSIS",
+                        }
+            except Exception as f1_err:
+                _logger.info("agentic_llm_triage_fallback: %s", f1_err)
+
     IntentSvc.update_context(conv_id, text, cls)
 
     try:
@@ -342,6 +376,13 @@ def rag_node(state: AgentState) -> dict[str, Any]:
             )
             retrieval_query = prior_question
             r = KmSvc.search(db, retrieval_query, language="id", corr=corr, tenant_id=tenant_id)
+        if r.get("zero_result"):
+            t_lower = text.lower()
+            if state.get("intent", {}).get("intent_code") == "INFO_PRODUCT_POLICY":
+                if any(w in t_lower for w in ("operasional", "oprasional", "jam", "buka", "tutup", "kerja", "jadwal", "waktu", "kontak", "alamat", "telepon", "call center", "email")):
+                    r_fb = KmSvc.search(db, "jam operasional dan saluran layanan pelanggan", language="id", corr=corr, tenant_id=tenant_id)
+                    if not r_fb.get("zero_result"):
+                        r = r_fb
     except Exception:
         audit_svc.emit(
             tenant_id, corr, "SYSTEM", "rag-svc", "knowledge.retrieval_failed",

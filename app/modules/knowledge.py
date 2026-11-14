@@ -4,6 +4,7 @@ Ditambah: ingest dokumen unggahan (PDF/DOCX/TXT), ekstraksi teks, chunking,
 status pemrosesan, dan pencarian atas potongan dokumen siap pakai."""
 from __future__ import annotations
 import datetime
+import difflib
 import hashlib
 import io
 import logging
@@ -690,6 +691,17 @@ def search_chunks(db: Session, query: str, tenant_id: str, limit: int = 5,
                         "score": round(s, 3), "source_type": "document"})
     return results
 
+def _term_in_content(term: str, content_lower: str, title_terms: set[str], content_words: set[str]) -> bool:
+    """Algorithmic term matching supporting fuzzy typo matching without static dictionaries."""
+    if term in content_lower or term in title_terms:
+        return True
+    if len(term) >= 4:
+        for cw in content_words:
+            if abs(len(term) - len(cw)) <= 2 and (cw[0] == term[0]):
+                if difflib.SequenceMatcher(None, term, cw).ratio() >= 0.82:
+                    return True
+    return False
+
 # ---- pencarian gabungan (artikel + dokumen) ----
 
 def search(db: Session, query: str, language: str = "id", for_agent: bool = False,
@@ -715,7 +727,8 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
         if _as_utc(v.expires_at) and _as_utc(v.expires_at) < now: continue
         body = (v.body or "").casefold()
         title_terms = set(_search_terms(a.title or ""))
-        hits = sum(1 for w in query_terms if w in body or w in title_terms)
+        content_words = set(re.findall(r"[\w]+", body))
+        hits = sum(1 for w in query_terms if _term_in_content(w, body, title_terms, content_words))
         score = hits / max(1, len(query_terms)) if query_terms else 0.0
         if hits >= 1 and (score >= 0.20 or hits >= len(query_terms) * 0.3 or hits >= 2):
             lang_boost = 0.1 if a.language == language else 0
@@ -739,7 +752,8 @@ def search(db: Session, query: str, language: str = "id", for_agent: bool = Fals
         body = (c.content or "").casefold()
         words = query_terms
         title_terms = set(_search_terms(doc.title or ""))
-        hits = sum(1 for w in words if w in body or w in title_terms)
+        content_words = set(re.findall(r"[\w]+", body))
+        hits = sum(1 for w in words if _term_in_content(w, body, title_terms, content_words))
         score = hits / max(1, len(words)) if words else 0.0
         if hits >= 1 and (score >= 0.20 or hits >= len(words) * 0.3 or hits >= 2):
             lang_boost = 0.1 if language == "id" else 0

@@ -2,6 +2,7 @@
 ambang 0.75/0.45, konteks slot+ringkasan, sentimen/urgensi, kerentanan, kontak berulang.
 TRD §4.5: dua tahap disederhanakan jadi rule terkalibrasi + validasi enum (BR-INT-01)."""
 from __future__ import annotations
+import difflib
 import re
 from ..core.ids import new_id
 from ..core import audit as audit_svc
@@ -136,12 +137,13 @@ def _human_agent_requested(text: str) -> bool:
     want_words = r"(?:butuh|minta|ingin|mau|tolong|mohon|bisa)"
     patterns = (
         rf"\b{verb_contact}\s+(?:ke\s+|dengan\s+|sama\s+)?{target_human}\b",
-        rf"\b{want_words}\s+(?:bantuan\s+|bicara\s+dengan\s+|berbicara\s+dengan\s+|merbiacara\s+dengan\s+)?{target_human}\b",
+        rf"\b{want_words}\s+(?:bantuan\s+|bicara\s+(?:dengan\s+|sama\s+)?|berbicara\s+(?:dengan\s+|sama\s+)?|terhubung\s+(?:ke\s+|dengan\s+|sama\s+)?|ngobrol\s+(?:sama\s+|dengan\s+)?){target_human}\b",
         rf"\b{target_human}\s+(?:saja|asli|langsung)\b",
         rf"\btransfer\s+(?:ke\s+)?{target_human}\b",
         rf"\b(?:berbicara|bicara|merbiacara)\s+langsung\b",
-        rf"\b{want_words}\s+.*{target_human}\b",
-        rf"\b{verb_contact}\s+.*{target_human}\b",
+        rf"\b(?:hubungkan|sambungkan|alihkan)\s+(?:saya\s+)?(?:ke\s+|dengan\s+|sama\s+)?{target_human}\b",
+        rf"\bminta\s+(?:ke\s+|sama\s+)?{target_human}\b",
+        rf"\bbutuh\s+{target_human}\b",
     )
     return any(re.search(p, t) for p in patterns)
 
@@ -168,7 +170,18 @@ def _repeat_contact_explicit(text: str) -> bool:
 
 def _score(text: str, words: list[str]) -> float:
     t = text.lower()
-    hits = sum(1 for w in words if w in t)
+    t_words = set(re.findall(r"[\w]+", t))
+    hits = 0
+    for w in words:
+        if w in t:
+            hits += 1
+        elif len(w) >= 4:
+            # Fuzzy match for typos without dictionary
+            for tw in t_words:
+                if abs(len(w) - len(tw)) <= 2 and (w[0] == tw[0]):
+                    if difflib.SequenceMatcher(None, w, tw).ratio() >= 0.82:
+                        hits += 1
+                        break
     if not hits: return 0.0
     return min(0.95, 0.55 + 0.15 * hits)
 
