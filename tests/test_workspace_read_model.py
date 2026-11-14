@@ -39,10 +39,11 @@ def test_workspace_read_model_includes_handoff_package():
         conv = ingest(
             db,
             channel="WEB_CHAT",
-            from_handle="customer-test-user",
+            from_handle="customer-card-user",
             text="Saya ingin kartu saya diblokir karena hilang",
-            claimed_customer_id="customer-test-user",
+            claimed_customer_id="customer-card-user",
             tenant="TNT-TEST",
+            force_new=True,
         )
         conv_id = conv["conversation_id"]
 
@@ -51,7 +52,7 @@ def test_workspace_read_model_includes_handoff_package():
             db,
             conversation_id=conv_id,
             reason_code="CUSTOMER_REQUEST",
-            ctx={"tenant_id": "TNT-TEST", "actor_type": "CUSTOMER", "actor_id": "customer-test-user"},
+            ctx={"tenant_id": "TNT-TEST", "actor_type": "CUSTOMER", "actor_id": "customer-card-user"},
             corr="CORR-U08-TEST",
             severity="HIGH",
             package_complete=True,
@@ -67,7 +68,7 @@ def test_workspace_read_model_includes_handoff_package():
         assert "handoff_package" in data
 
         pkg = data["handoff_package"]
-        assert pkg["customer_id"] == "customer-test-user"
+        assert pkg["customer_id"] == "customer-card-user"
         assert "summary" in pkg
         assert "Saya ingin kartu saya diblokir karena hilang" in pkg["summary"]
         assert "intent_code" in pkg
