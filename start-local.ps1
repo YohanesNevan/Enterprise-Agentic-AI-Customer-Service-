@@ -23,6 +23,11 @@ if (-not (Test-Path ".env")) {
   Copy-Item ".env.example" ".env"
   Write-Host "[ok] .env dibuat dari .env.example"
 }
+$webEnvLocal = Join-Path $root "web-workspace\.env.local"
+if (-not (Test-Path $webEnvLocal)) {
+  Copy-Item (Join-Path $root "web-workspace\.env.example") $webEnvLocal
+  Write-Host "[ok] web-workspace/.env.local dibuat dari .env.example"
+}
 if (-not $docker -or -not (Test-Path $docker)) { throw "Docker Desktop belum terpasang. Pasang Docker Desktop lalu jalankan ulang." }
 if (-not $desktop -or -not (Test-Path $desktop)) { throw "Docker Desktop tidak ditemukan di sistem." }
 
@@ -63,19 +68,10 @@ if ($RunTests) {
   if ($LASTEXITCODE -ne 0) { throw "Tes backend gagal." }
 }
 
-Write-Host "Membersihkan proses lama pada port 8000 & 5173..."
-$oldConns = Get-NetTCPConnection -LocalPort 8000, 5173 -State Listen -ErrorAction SilentlyContinue
-if ($oldConns) {
-  $oldConns | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object {
-    Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
-  }
-  Start-Sleep -Seconds 1
-}
-
 Write-Host "Menjalankan API pada port 8000..."
 $logOut = Join-Path $root "api-local.log"
 $logErr = Join-Path $root "api-local-error.log"
-$be = Start-Process -FilePath "python" -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload") -WorkingDirectory $root -RedirectStandardOutput $logOut -RedirectStandardError $logErr -WindowStyle Hidden -PassThru
+$be = Start-Process -FilePath "python" -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000") -WorkingDirectory $root -RedirectStandardOutput $logOut -RedirectStandardError $logErr -WindowStyle Hidden -PassThru
 $apiReady = $false
 for ($i = 0; $i -lt 30; $i++) {
   Start-Sleep -Seconds 2

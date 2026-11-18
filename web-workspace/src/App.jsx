@@ -37,7 +37,28 @@ import Audit from './pages/workspace/Audit.jsx'
 import KnowledgeManager from './pages/workspace/KnowledgeManager.jsx'
 import ComplaintOfficer from './pages/workspace/ComplaintOfficer.jsx'
 
-/* ================= App ================= */
+const PAGE_COMPONENTS = {
+  login: UniversalLogin,
+  'customer-login': UniversalLogin,
+  'staff-login': UniversalLogin,
+  'customer-chat': CustomerChat,
+  'customer-history': CustomerHistory,
+  'customer-request': CustomerRequest,
+  'customer-track': CustomerTrack,
+  'customer-account': CustomerAccount,
+  dash: Dash,
+  queue: Queue,
+  conv: Conv,
+  cases: Cases,
+  approvals: Approvals,
+  qa: QA,
+  analytics: Analytics,
+  sla: SLA,
+  audit: Audit,
+  knowledge: KnowledgeManager,
+  complaints: ComplaintOfficer,
+}
+
 export default function App() {
   const [path, setPath] = useState(window.location.pathname)
   const [session, setSession] = useState(undefined)
@@ -77,32 +98,18 @@ export default function App() {
 
   const route = ROUTES[path]
   const role = session?.principal?.role
+  const isStaff = Boolean(session && role && role !== 'customer')
+  const staffHome = staffNavigationFor(role)[0]?.[0] || '/agent/queue'
+  const homePath = isStaff ? staffHome : '/'
+
   const customerRoute = route?.audience === 'customer'
-  const isPublic = path === '/' || path === '/customer/login' || path === '/staff/login' || path === '/login'
+  const isPublic = !isStaff && (path === '/' || path === '/customer/login' || path === '/staff/login' || path === '/login')
   const permitted = customerRoute ? role === 'customer' : Array.isArray(route?.audience) ? route.audience.includes(role) : route?.audience === role
   const needsAuth = !isPublic && !session
   const navItems = isPublic || (customerRoute && (!session || role === 'customer')) ? CUSTOMER_LINKS : staffNavigationFor(role)
   const title = route?.title || (isPublic ? 'Layanan pelanggan' : 'Halaman tidak ditemukan')
 
-  const Page = (route?.page === 'customer-login' || route?.page === 'staff-login' || route?.page === 'login') ? UniversalLogin
-    : route?.page === 'customer-chat' ? CustomerChat
-    : route?.page === 'customer-history' ? CustomerHistory
-    : route?.page === 'customer-request' ? CustomerRequest
-    : route?.page === 'customer-track' ? CustomerTrack
-    : route?.page === 'customer-account' ? CustomerAccount
-    : route?.page === 'dash' ? Dash
-    : route?.page === 'queue' ? Queue
-    : route?.page === 'conv' ? Conv
-    : route?.page === 'cases' ? Cases
-    : route?.page === 'approvals' ? Approvals
-    : route?.page === 'qa' ? QA
-    : route?.page === 'analytics' ? Analytics
-    : route?.page === 'sla' ? SLA
-    : route?.page === 'audit' ? Audit
-    : route?.page === 'knowledge' ? KnowledgeManager
-    : route?.page === 'complaints' ? ComplaintOfficer
-    : null
-
+  const Page = PAGE_COMPONENTS[route?.page]
   const customerShell = isPublic || customerRoute
   let content
   if (path === '/') content = <CustomerHome />
@@ -135,6 +142,7 @@ export default function App() {
           <span className="nav-index" aria-hidden="true">↳</span><span className="nav-copy">Masuk akun</span><span className="nav-arrow" aria-hidden="true">↗</span>
         </a>}
       </nav>
+
       <div className="sidebar-bottom">
         <div className="sidebar-account-mark" aria-hidden="true">{customerShell ? 'C' : (role || 'S').slice(0, 1).toUpperCase()}</div>
         <div className="sidebar-account-copy"><strong>{session?.principal?.role === 'customer' ? 'Akun pelanggan' : role ? role.replaceAll('_', ' ') : customerShell ? 'Layanan terbuka' : 'Sesi staf'}</strong><span>{session ? 'Sesi terverifikasi' : 'Akses mengikuti autentikasi'}</span></div>
@@ -200,4 +208,5 @@ export {
   SLA,
   Audit,
   KnowledgeManager,
+  ComplaintOfficer,
 }

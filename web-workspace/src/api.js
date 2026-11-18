@@ -20,32 +20,30 @@ async function installDevelopmentSession(endpoint, username, password) {
   return developmentPrincipal
 }
 
-export async function devUniversalLogin(username, password) {
-  try {
-    return await installDevelopmentSession('/v1/dev-auth/login', username, password)
-  } catch (err) {
-    // Jika endpoint baru belum termuat (backend belum restart), fallback otomatis ke rute lama
-    if (err?.status === 404) {
-      try {
-        return await installDevelopmentSession('/v1/dev-auth/customer/login', username, password)
-      } catch (custErr) {
-        try {
-          return await installDevelopmentSession('/v1/dev-auth/staff/login', username, password)
-        } catch {
-          throw custErr
-        }
-      }
-    }
-    throw err
-  }
-}
-
 export function devCustomerLogin(username, password) {
   return installDevelopmentSession('/v1/dev-auth/customer/login', username, password)
 }
 
 export function devStaffLogin(username, password) {
   return installDevelopmentSession('/v1/dev-auth/staff/login', username, password)
+}
+
+export async function devUniversalLogin(username, password) {
+  // Try customer login first; if it fails, try staff login.
+  // If both fail, surface the most useful error.
+  let customerError
+  try {
+    return await installDevelopmentSession('/v1/dev-auth/customer/login', username, password)
+  } catch (err) {
+    customerError = err
+  }
+  try {
+    return await installDevelopmentSession('/v1/dev-auth/staff/login', username, password)
+  } catch (staffError) {
+    // If both failed, prefer the customer error unless the staff endpoint
+    // actually authenticated but returned a different problem.
+    throw customerError || staffError
+  }
 }
 
 export function devCustomerLogout() {
