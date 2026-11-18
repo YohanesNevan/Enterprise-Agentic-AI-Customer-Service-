@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, req } from '../../api.js'
-import { navigate } from '../../shared/navigation.js'
+import { customerConversationState, navigate } from '../../shared/navigation.js'
 
 function formatConversationTime(value) {
   const date = new Date(value)
@@ -288,6 +288,48 @@ export function FormattedMessage({ text }) {
   )
 }
 
+export function ChatHandoffTrackCard({ conversationId, status, occurredAt }) {
+  const currentStatus = status || 'PENDING_HANDOFF'
+  const isQueued = currentStatus === 'PENDING_HANDOFF' || currentStatus === 'NEW'
+  const isActive = currentStatus === 'ACTIVE_HUMAN'
+  const stateLabel = customerConversationState(currentStatus)
+  const dateFormatted = occurredAt
+    ? new Date(occurredAt).toLocaleString('id-ID')
+    : new Date().toLocaleString('id-ID')
+
+  return (
+    <div className="chat-tracking-card" role="region" aria-label="Status Pelacakan Layanan">
+      <div className="chat-tracking-header">
+        <span className={`chat-tracking-badge ${isQueued ? 'queued' : isActive ? 'active' : 'other'}`}>
+          <span className="chat-tracking-dot" aria-hidden="true" />
+          {stateLabel}
+        </span>
+        <span className="chat-tracking-meta">Aktivitas terakhir {dateFormatted}</span>
+      </div>
+      <div className="chat-tracking-body">
+        <h4>Percakapan layanan</h4>
+        <p className="chat-tracking-ref">{conversationId}</p>
+      </div>
+      <div className="chat-tracking-footer">
+        <span className="chat-tracking-sync-note">
+          Tiket investigasi dan percakapan tersinkronisasi secara otomatis dengan pusat operasional EAICS.
+        </span>
+        <a
+          href="/customer/track"
+          className="chat-tracking-link"
+          onClick={(e) => {
+            e.preventDefault()
+            navigate('/customer/track')
+          }}
+          title="Buka halaman pelacakan status & SLA tiket"
+        >
+          Lacak Status ↗
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export default function CustomerChat() {
   const getInitialConversationId = () => {
     const fromUrl = new URLSearchParams(window.location.search).get('conversation_id')
@@ -301,6 +343,7 @@ export default function CustomerChat() {
 
   const [text, setText] = useState(() => new URLSearchParams(window.location.search).get('draft') || '')
   const [conversationId, setConversationId] = useState(getInitialConversationId)
+  const [conversationStatus, setConversationStatus] = useState(null)
   const [messages, setMessages] = useState([])
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -440,6 +483,7 @@ export default function CustomerChat() {
   const startNewChat = () => {
     updateActiveConversation(null)
     setMessages([])
+    setConversationStatus(null)
     setText('')
     setRetryInfo(null)
     setNotice('Sesi percakapan baru siap — kirim pesan untuk memulai obrolan baru.')
@@ -455,13 +499,16 @@ export default function CustomerChat() {
     try {
       let cursor = null
       const all = []
+      let convStatus = null
       do {
         const suffix = cursor ? `?limit=100&cursor=${encodeURIComponent(cursor)}` : '?limit=100'
         const data = await req(`/v1/conversations/${encodeURIComponent(id)}/read-model${suffix}`)
         all.push(...(data.messages || []))
+        if (data.conversation?.status) convStatus = data.conversation.status
         cursor = data.next_cursor
       } while (cursor)
       setConversationId(id)
+      if (convStatus) setConversationStatus(convStatus)
       setMessages(all)
       lastMessageSignatureRef.current = all.map((message) => message.message_id || `${message.sequence_no}:${message.occurred_at}`).join('|')
       setTimeout(() => scrollToBottom(true), 80)
@@ -489,12 +536,17 @@ export default function CustomerChat() {
     const timer = setInterval(() => {
       req(`/v1/conversations/${encodeURIComponent(conversationId)}/read-model?limit=100`)
         .then((data) => {
-          if (data && data.messages && data.messages.length > 0) {
-            const signature = data.messages.map((message) => message.message_id || `${message.sequence_no}:${message.occurred_at}`).join('|')
-            if (signature !== lastMessageSignatureRef.current) {
-              lastMessageSignatureRef.current = signature
-              setMessages(data.messages)
-              loadHistory(historySearch)
+          if (data) {
+            if (data.conversation?.status) {
+              setConversationStatus(data.conversation.status)
+            }
+            if (data.messages && data.messages.length > 0) {
+              const signature = data.messages.map((message) => message.message_id || `${message.sequence_no}:${message.occurred_at}`).join('|')
+              if (signature !== lastMessageSignatureRef.current) {
+                lastMessageSignatureRef.current = signature
+                setMessages(data.messages)
+                loadHistory(historySearch)
+              }
             }
           }
         })
@@ -537,6 +589,9 @@ export default function CustomerChat() {
       })
       if (!result.conversation_id) throw new ApiError(502, 'MISSING_CONVERSATION', 'Layanan tidak mengembalikan referensi percakapan.')
       updateActiveConversation(result.conversation_id)
+      if (result.handoff_status) {
+        setConversationStatus(result.handoff_status === 'ACCEPTED' ? 'ACTIVE_HUMAN' : 'PENDING_HANDOFF')
+      }
       setRetryInfo(null)
       setText('')
       setNotice(
@@ -614,6 +669,24 @@ export default function CustomerChat() {
                 <span style={{ color: 'var(--success)', fontWeight: 600 }}>● Aktif</span>
                 <span>·</span>
                 <span>Layanan Pelanggan Agentik 24/7</span>
+                {conversationStatus === 'PENDING_HANDOFF' && (
+                  <>
+                    <span>·</span>
+                    <span className="chat-tracking-badge queued" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                      <span className="chat-tracking-dot" aria-hidden="true" />
+                      Menunggu Petugas
+                    </span>
+                  </>
+                )}
+                {conversationStatus === 'ACTIVE_HUMAN' && (
+                  <>
+                    <span>·</span>
+                    <span className="chat-tracking-badge active" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                      <span className="chat-tracking-dot" aria-hidden="true" />
+                      Dialihkan ke Petugas
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -675,6 +748,11 @@ export default function CustomerChat() {
           <>
             {messages.map((m) => {
               const isCustomer = m.direction === 'INBOUND'
+              const isHandoffNotice = !isCustomer && (
+                m.content?.toLowerCase().includes('masuk antrean') ||
+                m.content?.toLowerCase().includes('bantuan petugas') ||
+                m.content?.toLowerCase().includes('belum mengonfirmasi')
+              )
               return (
                 <article
                   className={`chat-bubble ${isCustomer ? 'from-customer' : 'from-service'}`}
@@ -685,6 +763,13 @@ export default function CustomerChat() {
                     <small>{m.occurred_at ? new Date(m.occurred_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small>
                   </div>
                   <FormattedMessage text={m.content} />
+                  {isHandoffNotice && (
+                    <ChatHandoffTrackCard
+                      conversationId={conversationId}
+                      status={conversationStatus || 'PENDING_HANDOFF'}
+                      occurredAt={m.occurred_at}
+                    />
+                  )}
                   {!isCustomer && (m.citations || []).length > 0 && (
                     <div className="chat-citation-box">
                       <span className="chat-citation-title">Sumber Informasi Resmi</span>

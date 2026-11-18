@@ -156,6 +156,131 @@
   margin: 2px 0;
 }
 
+/* Tracking Card inside Customer Chat */
+.chat-tracking-card {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid var(--electric-blue);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(14, 27, 44, .04);
+  animation: rise-in .3s ease-out;
+}
+
+.chat-tracking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-tracking-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2.5px 8px;
+  border-radius: 4px;
+}
+
+.chat-tracking-badge.queued {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.chat-tracking-badge.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.chat-tracking-badge.other {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.chat-tracking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-dot 1.4s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.chat-tracking-meta {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.chat-tracking-body h4 {
+  margin: 0 0 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.chat-tracking-ref {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--electric-blue);
+  letter-spacing: .02em;
+  font-weight: 500;
+}
+
+.chat-tracking-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.chat-tracking-sync-note {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.chat-tracking-link {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--electric-blue);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  transition: all .18s ease;
+}
+
+.chat-tracking-link:hover {
+  background: #e0f2fe;
+  border-color: var(--electric-blue);
+  color: #0369a1;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
 .chat-scroll-bottom-btn {
   position: absolute;
   bottom: 84px;
