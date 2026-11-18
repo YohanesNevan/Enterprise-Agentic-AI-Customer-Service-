@@ -23,6 +23,11 @@ if (-not (Test-Path ".env")) {
   Copy-Item ".env.example" ".env"
   Write-Host "[ok] .env dibuat dari .env.example"
 }
+$webEnvLocal = Join-Path $root "web-workspace\.env.local"
+if (-not (Test-Path $webEnvLocal)) {
+  Copy-Item (Join-Path $root "web-workspace\.env.example") $webEnvLocal
+  Write-Host "[ok] web-workspace/.env.local dibuat dari .env.example"
+}
 if (-not $docker -or -not (Test-Path $docker)) { throw "Docker Desktop belum terpasang. Pasang Docker Desktop lalu jalankan ulang." }
 if (-not $desktop -or -not (Test-Path $desktop)) { throw "Docker Desktop tidak ditemukan di sistem." }
 
