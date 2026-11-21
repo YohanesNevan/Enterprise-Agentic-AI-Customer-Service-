@@ -9,8 +9,8 @@ from ..core.ids import new_id
 REGISTRY = {
     "knowledge_search": {"version": "1.0.0", "risk": "READ", "al": "AL0", "idempotent": True, "timeout_ms": 3000},
     "customer_profile_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL1", "idempotent": True, "timeout_ms": 3000},
-    "account_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL2", "idempotent": True, "timeout_ms": 3000},
-    "transaction_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL2", "idempotent": True, "timeout_ms": 3000},
+    "account_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL1", "idempotent": True, "timeout_ms": 3000},
+    "transaction_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL1", "idempotent": True, "timeout_ms": 3000},
     "order_claim_lookup": {"version": "1.0.0", "risk": "READ", "al": "AL1", "idempotent": True, "timeout_ms": 3000},
     "auth_challenge": {"version": "1.0.0", "risk": "WRITE_LOW", "al": "AL0", "idempotent": True, "timeout_ms": 5000},
     "auth_verify": {"version": "1.0.0", "risk": "WRITE_LOW", "al": "AL0", "idempotent": True, "timeout_ms": 5000},

@@ -69,8 +69,14 @@ def identify(db: Session, sess: ChannelSessionRow, identifier: str, corr: str) -
                    after={"al": "AL1"})
     return {"assurance_level": "AL1", "customer_id": matched}
 
-def challenge(sess: ChannelSessionRow, purpose: str, corr: str, channel: str = "REGISTERED_EMAIL") -> dict:
-    """FR-AUTH-003: AI tak pernah lihat kode; hanya hash disimpan. OTP deterministik 123456 di TEST."""
+def challenge(sess: ChannelSessionRow, purpose: str, corr: str, channel: str = "REGISTERED_EMAIL",
+              simulate_delivery: bool = False) -> dict:
+    """FR-AUTH-003: AI tak pernah lihat kode; hanya hash disimpan.
+
+    ``simulate_delivery`` is only passed by the development OTP simulator. The
+    plain code is returned to that caller only; it is never written to the
+    conversation transcript, audit record, or logs.
+    """
     import os
     if _locked(sess.channel_session_id):
         raise AppError("E_RATE_LIMIT", "locked", customer_message_id="AUTH.LOCKED")
@@ -81,7 +87,17 @@ def challenge(sess: ChannelSessionRow, purpose: str, corr: str, channel: str = "
     _attempts[cid] = 0
     audit_svc.emit("TNT-TEST", corr, "SYSTEM", "auth-svc", "auth.challenge_issued",
                    "challenge", cid, "auth-svc", session_id=sess.channel_session_id)
-    return {"challenge_id": cid, "delivery_channel_masked": channel[:4] + "***"}
+    result = {"challenge_id": cid, "delivery_channel_masked": channel[:4] + "***",
+              "expires_in": 300, "purpose": purpose,
+              "assurance_target": "AL3" if purpose in ("HIGH_RISK", "T4", "AL3") else "AL2"}
+    if simulate_delivery:
+        result["simulated_delivery"] = True
+        result["simulated_code"] = code
+        result["simulation_notice"] = ("Simulator OTP pengembangan: kode ditampilkan di sini "
+                                       "dan tidak pernah disimpan di transkrip.")
+        audit_svc.emit("TNT-TEST", corr, "SYSTEM", "auth-svc", "auth.challenge_simulated",
+                       "challenge", cid, "auth-svc", session_id=sess.channel_session_id)
+    return result
 
 def verify(db: Session, sess: ChannelSessionRow, challenge_id: str, code: str, corr: str) -> dict:
     ch = _challenges.get(challenge_id)
@@ -106,7 +122,10 @@ def verify(db: Session, sess: ChannelSessionRow, challenge_id: str, code: str, c
         audit_svc.emit("TNT-TEST", corr, "SYSTEM", "auth-svc", "auth.challenge_verified",
                        "challenge", challenge_id, "auth-svc", session_id=sess.channel_session_id,
                        after={"al": sess.assurance_level})
-        return {"verified": True, "assurance_level": sess.assurance_level, "attempts_remaining": MAX_ATTEMPTS}
+        expires = sess.al_expires_at.isoformat() if sess.al_expires_at else None
+        return {"verified": True, "assurance_level": sess.assurance_level,
+                "attempts_remaining": MAX_ATTEMPTS, "expires_at": expires,
+                "idle_ttl_seconds": TTL.get(sess.assurance_level)}
     _attempts[challenge_id] = _attempts.get(challenge_id, 0) + 1
     sess.auth_failed_count += 1; db.commit()
     left = MAX_ATTEMPTS - _attempts[challenge_id]
@@ -132,15 +151,40 @@ def check_session(sess: ChannelSessionRow) -> str:
     return sess.assurance_level
 
 def record_consent(customer_id: str | None, conv_id: str, purpose: str, granted: bool,
-                   version: str, corr: str, al: str = "AL1") -> dict:
+                   version: str, corr: str, al: str = "AL1", db: Session | None = None,
+                   tenant_id: str | None = None) -> dict:
     c = {"consent_id": new_id("turn"), "customer_id": customer_id, "conversation_id": conv_id,
          "purpose": purpose, "text_version": version, "granted": granted,
          "granted_at": _now().isoformat(), "assurance_level": al}
     _consents.append(c)
-    audit_svc.emit("TNT-TEST", corr, "CUSTOMER", customer_id or "anon",
+    if db is not None:
+        from .models_a import ConsentRow
+        db.add(ConsentRow(consent_id=c["consent_id"], tenant_id=tenant_id or "TNT-TEST",
+                          customer_id=customer_id, conversation_id=conv_id, purpose=purpose,
+                          text_version=version, granted=bool(granted), assurance_level=al,
+                          granted_at=_now()))
+        db.commit()
+    audit_svc.emit(tenant_id or "TNT-TEST", corr, "CUSTOMER", customer_id or "anon",
                    "consent.granted" if granted else "consent.refused",
-                   "consent", c["consent_id"], "auth-svc", conversation_id=conv_id)
+                   "consent", c["consent_id"], "auth-svc", conversation_id=conv_id,
+                   after={"purpose": purpose, "text_version": version})
     return c
+
+
+def has_consent(db: Session | None, conv_id: str, purpose: str) -> bool:
+    """True only when the latest consent for this purpose is granted."""
+    row = None
+    if db is not None:
+        from .models_a import ConsentRow
+        row = (db.query(ConsentRow)
+               .filter_by(conversation_id=conv_id, purpose=purpose)
+               .order_by(ConsentRow.granted_at.desc()).first())
+    if row is not None:
+        return bool(row.granted)
+    for c in reversed(_consents):
+        if c["conversation_id"] == conv_id and c["purpose"] == purpose:
+            return bool(c["granted"])
+    return False
 
 def qa_consented(conv_id: str) -> bool:
     for c in _consents:

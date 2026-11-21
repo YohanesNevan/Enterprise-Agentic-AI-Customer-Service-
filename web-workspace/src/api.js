@@ -78,7 +78,15 @@ export class ApiError extends Error {
 
 export async function req(path, { method = 'GET', body, download = false, auth = true, headers: extraHeaders = {} } = {}) {
   let accessToken = null
-  if (auth) {
+  if (auth === 'optional') {
+    if (authProvider?.getAccessToken) {
+      try {
+        accessToken = await authProvider.getAccessToken()
+      } catch {
+        accessToken = null
+      }
+    }
+  } else if (auth) {
     if (!authProvider?.getAccessToken) {
       throw new ApiError(401, 'AUTH_REQUIRED', 'Authentication is required to access this service.')
     }

@@ -12,7 +12,8 @@ from datetime import datetime
 from fastapi import Depends, Request, UploadFile, File, Form
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import or_, and_, func
-from ..core.rbac import require_human_perm, require_perm, optional_principal
+from ..core.rbac import require_human_perm, require_perm, optional_principal, _forbidden
+from ..core.guest_session import guest_tenant_id, issue_guest_session, verify_guest_session
 from ..core.errors import AppError
 from ..core.db import SessionLocal, safe_database_identity
 from ..core import audit as audit_svc
@@ -196,10 +197,71 @@ def register(app):
             db.close()
 
     # ---- Chat turn orkestrasi (FR-ORC) ----
+    def _owned_customer_conversation(db, conversation_id: str, ctx):
+        conversation = db.query(ConversationRow).filter_by(
+            conversation_id=conversation_id, tenant_id=ctx["tenant_id"]).first()
+        if not conversation or (ctx["role"] == "customer" and conversation.customer_id != ctx["actor_id"]):
+            raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+        return conversation
+
+    def _claim_guest_conversation(db, conversation, ctx, guest_token: str, corr: str) -> bool:
+        """Attach a Tier-1 guest conversation to the signed-in customer.
+
+        The guest token proves ownership of the anonymous conversation, so a
+        guessed conversation ID alone can never transfer history to an account.
+        """
+        if conversation.tenant_id != ctx["tenant_id"]:
+            return False
+        if conversation.customer_id not in (None, "guest_customer"):
+            return False
+        if not verify_guest_session(guest_token, conversation.conversation_id, ctx["tenant_id"]):
+            return False
+        conversation.customer_id = ctx["actor_id"]
+        conversation.claimed_customer_id = ctx["actor_id"]
+        sess = (db.query(ChannelSessionRow)
+                .filter_by(conversation_id=conversation.conversation_id, channel="WEB_CHAT")
+                .order_by(ChannelSessionRow.started_at.desc()).first())
+        if sess:
+            from datetime import timedelta, timezone as _tz
+            now = datetime.now(_tz.utc)
+            sess.assurance_level = "AL1"
+            sess.al_method = ["SESSION_LOGIN"]
+            sess.al_established_at = now
+            sess.al_expires_at = now + timedelta(seconds=AuthSvc.TTL["AL1"])
+        db.commit()
+        audit_svc.emit(ctx["tenant_id"], corr, "CUSTOMER", ctx["actor_id"],
+                       "auth.guest_session_claimed", "conversation",
+                       conversation.conversation_id, "identity-svc",
+                       conversation_id=conversation.conversation_id)
+        return True
+
+    def _otp_simulation_enabled() -> bool:
+        if os.getenv("TEST_MODE", "false").lower() in ("1", "true", "yes"):
+            return True
+        if os.getenv("ENVIRONMENT", "").lower() != "development":
+            return False
+        return os.getenv("OTP_SIMULATOR_ENABLED", "true").lower() in ("1", "true", "yes")
+
     @app.post("/v1/chat/messages")
-    async def chat_message(body: dict, request: Request, ctx=Depends(require_perm("conversation.write"))):
+    async def chat_message(body: dict, request: Request, ctx=Depends(optional_principal)):
         db = SessionLocal()
         try:
+            is_guest = ctx is None
+            if is_guest:
+                ctx = {
+                    "actor_id": "guest_customer",
+                    "actor_type": "CUSTOMER",
+                    "identity_type": "guest",
+                    "role": "customer",
+                    "tenant_id": guest_tenant_id(),
+                    "permissions": {"conversation.read", "conversation.write"},
+                    "scope": [],
+                    "jti": "",
+                    "token_use": "guest",
+                    "assurance_level": "AL0",
+                }
+            authenticated = bool(not is_guest and ctx.get("role") == "customer")
+            guest_token = request.headers.get("X-Guest-Session", "").strip()
             if ctx["role"] == "customer":
                 try:
                     parsed = CustomerChatIn.model_validate(body) if hasattr(CustomerChatIn, "model_validate") else CustomerChatIn.parse_obj(body)
@@ -210,15 +272,32 @@ def register(app):
                 if parsed.channel != "WEB_CHAT":
                     raise AppError("E_VALIDATION", "customer web chat only supports WEB_CHAT", customer_message_id="CONV.CHANNEL_INVALID")
                 if parsed.conversation_id:
-                    owned = db.query(ConversationRow).filter_by(conversation_id=parsed.conversation_id,
-                        tenant_id=ctx["tenant_id"], customer_id=ctx["actor_id"]).first()
-                    if not owned: raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
-                if parsed.conversation_id:
-                    owned = db.query(ConversationRow).filter_by(conversation_id=parsed.conversation_id,
-                        tenant_id=ctx["tenant_id"], customer_id=ctx["actor_id"]).first()
-                    if not owned: raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+                    if is_guest:
+                        # Public chats are protected by a signed session bound to the
+                        # conversation, not by possession of a short identifier.
+                        if not verify_guest_session(guest_token, parsed.conversation_id, ctx["tenant_id"]):
+                            raise AppError("E_UNAUTHORISED", "guest session required",
+                                           customer_message_id="CONV.GUEST_SESSION_REQUIRED")
+                        guest_conv = db.query(ConversationRow).filter_by(
+                            conversation_id=parsed.conversation_id, tenant_id=ctx["tenant_id"]).first()
+                        if not guest_conv or guest_conv.customer_id not in (None, "guest_customer"):
+                            raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+                    else:
+                        owned = db.query(ConversationRow).filter_by(
+                            conversation_id=parsed.conversation_id, tenant_id=ctx["tenant_id"]).first()
+                        if not owned:
+                            raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+                        if owned.customer_id != ctx["actor_id"]:
+                            # Allow a signed-in customer to continue their own public
+                            # chat, but only with the guest proof issued at Tier 1.
+                            if not _claim_guest_conversation(db, owned, ctx, guest_token,
+                                                             request.state.correlation_id):
+                                raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
                 key_header = request.headers.get("Idempotency-Key", "")
-                if not re.fullmatch(r"[A-Za-z0-9._~-]{16,128}", key_header):
+                if is_guest and not key_header:
+                    import uuid
+                    key_header = f"guest-{uuid.uuid4().hex}"
+                elif not re.fullmatch(r"[A-Za-z0-9._~-]{16,128}", key_header):
                     raise AppError("E_VALIDATION", "a valid Idempotency-Key is required", customer_message_id="CONV.IDEMPOTENCY_KEY_REQUIRED")
                 request_id = hashlib.sha256(f'{ctx["tenant_id"]}\0{ctx["actor_id"]}\0{key_header}'.encode()).hexdigest()
                 fingerprint = hashlib.sha256(json.dumps(parsed.model_dump() if hasattr(parsed, "model_dump") else parsed.dict(), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -240,14 +319,15 @@ def register(app):
                     raise AppError("E_CONFLICT", "request is already being processed", customer_message_id="CONV.REQUEST_IN_PROGRESS")
                 body = {"text": parsed.text, "channel": parsed.channel, "conversation_id": parsed.conversation_id, "force_new": parsed.force_new}
             conv_id = body.get("conversation_id")
-            actor_handle = ctx["actor_id"] if ctx["role"] == "customer" else body.get("from_handle", "anon")
+            actor_handle = ("anon" if is_guest else ctx["actor_id"]) if ctx["role"] == "customer" else body.get("from_handle", "anon")
+            claimed_id = None if is_guest else (ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id"))
             if not conv_id:
                 # auto-ingest bila belum ada percakapan
                 r = ConvSvc.ingest(db, body.get("channel", "WEB_CHAT"), actor_handle,
                                    body.get("text", ""), body.get("provider_message_id"),
                                    None, ctx, request.state.correlation_id,
                                    tenant=ctx["tenant_id"],
-                                   claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")),
+                                   claimed_customer_id=claimed_id,
                                    force_new=bool(body.get("force_new")))
                 conv_id = r["conversation_id"]
             else:
@@ -257,10 +337,18 @@ def register(app):
                                None, ctx, request.state.correlation_id,
                                tenant=ctx["tenant_id"],
                                conversation_id=conv_id,
-                               claimed_customer_id=(ctx["actor_id"] if ctx["role"] == "customer" else body.get("claimed_customer_id")))
+                               claimed_customer_id=claimed_id)
+            run_authenticated = authenticated if (is_guest or ctx["role"] == "customer") else None
             result = Orc.run_turn(db, conv_id, body.get("text", ""), request.state.correlation_id,
-                                  body.get("channel", "WEB_CHAT"), tenant_id=ctx["tenant_id"])
-            result = {**result, "conversation_id": conv_id}
+                                  body.get("channel", "WEB_CHAT"), tenant_id=ctx["tenant_id"],
+                                  authenticated=run_authenticated)
+            result = {**result, "conversation_id": conv_id,
+                      "authenticated": authenticated,
+                      "assurance_level": result.get("assurance_level",
+                                                    "AL1" if authenticated else "AL0")}
+            if is_guest:
+                # Issue a fresh signed guest session for the continued public chat.
+                result["guest_session"] = issue_guest_session(conv_id, ctx["tenant_id"])
             if ctx["role"] == "customer":
                 ledger.state = "COMPLETE"; ledger.response = result; db.commit()
             return result
@@ -409,14 +497,32 @@ def register(app):
     # ---- Read-model I-11 (TRD §7.3) — A produksi, B konsumsi ----
     @app.get("/v1/conversations/{conv_id}/read-model")
     async def read_model(conv_id: str, request: Request, limit: int = 50, cursor: str | None = None,
-                         ctx=Depends(require_perm("conversation.read"))):
+                         ctx=Depends(optional_principal)):
         db = SessionLocal()
         try:
+            is_guest = ctx is None
+            if is_guest:
+                guest_tenant = guest_tenant_id()
+                guest_token = request.headers.get("X-Guest-Session", "").strip()
+                if not verify_guest_session(guest_token, conv_id, guest_tenant):
+                    raise AppError("E_UNAUTHORISED", "guest session required",
+                                   customer_message_id="CONV.GUEST_SESSION_REQUIRED")
+                ctx = {"actor_id": "guest_customer", "identity_type": "guest", "role": "customer",
+                       "tenant_id": guest_tenant, "permissions": {"conversation.read"}}
+            # Staff still need the conversation.read permission; guest access is
+            # handled above through the signed guest session only.
+            if ctx["role"] != "customer" and "conversation.read" not in ctx.get("permissions", set()):
+                raise _forbidden(ctx["role"], "conversation.read")
             c = db.query(ConversationRow).filter_by(conversation_id=conv_id).first()
             if not c:
                 raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
-            if c.tenant_id != ctx["tenant_id"] or (ctx["role"] == "customer" and c.customer_id != ctx["actor_id"]):
+            if c.tenant_id != ctx["tenant_id"]:
                 raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+            if ctx["role"] == "customer":
+                if not is_guest and c.customer_id != ctx["actor_id"]:
+                    raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+                elif is_guest and c.customer_id is not None and c.customer_id != "guest_customer":
+                    raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
             sess = db.query(ChannelSessionRow).filter_by(conversation_id=conv_id).all()
             msgs_query = db.query(MessageRow).filter_by(conversation_id=conv_id).order_by(MessageRow.sequence_no, MessageRow.message_id)
             ints = db.query(IntentRow).filter_by(conversation_id=conv_id).all()
@@ -505,7 +611,148 @@ def register(app):
             customer_id = ctx["actor_id"] if ctx["role"] == "customer" else body.get("customer_id")
             return AuthSvc.record_consent(customer_id, conversation_id,
                                       body.get("purpose", "QA_REVIEW"), body.get("granted", True),
-                                      body.get("text_version", "v1"), request.state.correlation_id)
+                                      body.get("text_version", "v1"), request.state.correlation_id,
+                                      db=db, tenant_id=ctx["tenant_id"])
+        finally:
+            db.close()
+
+    # ---- Customer chat access controls: guest claim, step-up OTP, consent ----
+    CONSENT_PURPOSES = {"SENSITIVE_REQUEST", "HIGH_RISK_ACTION", "QA_REVIEW"}
+    STEPUP_PURPOSES = {"SENSITIVE_REQUEST", "AL2", "HIGH_RISK", "AL3", "T3", "T4"}
+
+    @app.post("/v1/customer/guest-session/claim")
+    async def claim_guest_session(body: dict, request: Request,
+                                  ctx=Depends(require_perm("conversation.read"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        conversation_id = str(body.get("conversation_id") or "").strip()
+        guest_token = str(body.get("guest_session_token") or "").strip()
+        if not conversation_id or not guest_token:
+            raise AppError("E_VALIDATION", "conversation_id and guest_session_token are required",
+                           customer_message_id="CONV.GUEST_SESSION_REQUIRED")
+        db = SessionLocal()
+        try:
+            conversation = db.query(ConversationRow).filter_by(
+                conversation_id=conversation_id, tenant_id=ctx["tenant_id"]).first()
+            if not conversation:
+                raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+            if not _claim_guest_conversation(db, conversation, ctx, guest_token,
+                                            request.state.correlation_id):
+                raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+            return {"conversation_id": conversation_id, "claimed": True,
+                    "assurance_level": "AL1"}
+        finally:
+            db.close()
+
+    @app.get("/v1/customer/chat/session")
+    async def customer_chat_session(conversation_id: str, request: Request,
+                                    ctx=Depends(require_perm("conversation.read"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        db = SessionLocal()
+        try:
+            conversation = _owned_customer_conversation(db, conversation_id, ctx)
+            sess = (db.query(ChannelSessionRow)
+                    .filter_by(conversation_id=conversation.conversation_id, channel="WEB_CHAT")
+                    .order_by(ChannelSessionRow.started_at.desc()).first())
+            al = AuthSvc.check_session(sess) if sess else "AL1"
+            if al == "AL0":
+                al = "AL1"
+            return {"conversation_id": conversation.conversation_id,
+                    "authenticated": True, "assurance_level": al,
+                    "al_expires_at": sess.al_expires_at.isoformat() if sess and sess.al_expires_at else None,
+                    "authentication_method": sess.al_method if sess else ["SESSION_LOGIN"],
+                    "session_lock": sess.lock_state if sess else "NONE"}
+        finally:
+            db.close()
+
+    @app.post("/v1/customer/chat/step-up/challenge")
+    async def customer_step_up_challenge(body: dict, request: Request,
+                                         ctx=Depends(require_perm("conversation.write"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        conversation_id = str(body.get("conversation_id") or "").strip()
+        purpose = str(body.get("purpose") or "SENSITIVE_REQUEST").upper()
+        if purpose not in STEPUP_PURPOSES:
+            raise AppError("E_VALIDATION", "unsupported verification purpose",
+                           customer_message_id="AUTH.PURPOSE_INVALID")
+        db = SessionLocal()
+        try:
+            conversation = _owned_customer_conversation(db, conversation_id, ctx)
+            sess = (db.query(ChannelSessionRow)
+                    .filter_by(conversation_id=conversation.conversation_id, channel="WEB_CHAT")
+                    .order_by(ChannelSessionRow.started_at.desc()).first())
+            if not sess:
+                raise AppError("E_NOT_FOUND", "session not found", customer_message_id="AUTH.SESSION_INVALID")
+            result = AuthSvc.challenge(sess, purpose, request.state.correlation_id,
+                                       simulate_delivery=_otp_simulation_enabled())
+            result["conversation_id"] = conversation.conversation_id
+            result["method"] = "STEP_UP_OTP"
+            result["max_attempts"] = AuthSvc.MAX_ATTEMPTS
+            audit_svc.emit(ctx["tenant_id"], request.state.correlation_id, "CUSTOMER", ctx["actor_id"],
+                           "auth.step_up_requested", "conversation", conversation.conversation_id,
+                           "identity-svc", conversation_id=conversation.conversation_id,
+                           after={"purpose": purpose})
+            return result
+        finally:
+            db.close()
+
+    @app.post("/v1/customer/chat/step-up/verify")
+    async def customer_step_up_verify(body: dict, request: Request,
+                                      ctx=Depends(require_perm("conversation.write"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        conversation_id = str(body.get("conversation_id") or "").strip()
+        challenge_id = str(body.get("challenge_id") or "").strip()
+        code = str(body.get("code") or "").strip()
+        if not challenge_id or not code:
+            raise AppError("E_VALIDATION", "challenge_id and code are required",
+                           customer_message_id="AUTH.CODE_REQUIRED")
+        db = SessionLocal()
+        try:
+            conversation = _owned_customer_conversation(db, conversation_id, ctx)
+            sess = (db.query(ChannelSessionRow)
+                    .filter_by(conversation_id=conversation.conversation_id, channel="WEB_CHAT")
+                    .order_by(ChannelSessionRow.started_at.desc()).first())
+            if not sess:
+                raise AppError("E_NOT_FOUND", "session not found", customer_message_id="AUTH.SESSION_INVALID")
+            result = AuthSvc.verify(db, sess, challenge_id, code, request.state.correlation_id)
+            if result.get("verified"):
+                try:
+                    ConvSvc.transition(db, conversation.conversation_id, "ACTIVE_AI",
+                                       "step_up_verified",
+                                       {"actor_type": "CUSTOMER", "actor_id": ctx["actor_id"]},
+                                       request.state.correlation_id)
+                except Exception:
+                    db.rollback()
+            return result
+        finally:
+            db.close()
+
+    @app.post("/v1/customer/chat/consent")
+    async def customer_chat_consent(body: dict, request: Request,
+                                    ctx=Depends(require_perm("conversation.write"))):
+        if ctx["role"] != "customer":
+            raise AppError("E_PROHIBITED", "customer access required")
+        conversation_id = str(body.get("conversation_id") or "").strip()
+        purpose = str(body.get("purpose") or "SENSITIVE_REQUEST").upper()
+        if purpose not in CONSENT_PURPOSES:
+            raise AppError("E_VALIDATION", "unsupported consent purpose",
+                           customer_message_id="AUTH.PURPOSE_INVALID")
+        if not isinstance(body.get("granted"), bool):
+            raise AppError("E_VALIDATION", "granted must be a boolean",
+                           customer_message_id="AUTH.CONSENT_INVALID")
+        db = SessionLocal()
+        try:
+            conversation = _owned_customer_conversation(db, conversation_id, ctx)
+            sess = (db.query(ChannelSessionRow)
+                    .filter_by(conversation_id=conversation.conversation_id, channel="WEB_CHAT")
+                    .order_by(ChannelSessionRow.started_at.desc()).first())
+            al = AuthSvc.check_session(sess) if sess else "AL1"
+            return AuthSvc.record_consent(
+                ctx["actor_id"], conversation.conversation_id, purpose, bool(body.get("granted")),
+                str(body.get("text_version") or "v1"), request.state.correlation_id,
+                al=al, db=db, tenant_id=ctx["tenant_id"])
         finally:
             db.close()
 

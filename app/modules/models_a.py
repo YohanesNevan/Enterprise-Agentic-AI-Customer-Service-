@@ -70,6 +70,20 @@ class CustomerRequestRow(Base):
     response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), default=_ts)
 
+class ConsentRow(Base):
+    """Durable customer consent per conversation/purpose (FR-AUTH consent capture)."""
+    __tablename__ = "customer_consent"
+    consent_id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(30), default="TNT-TEST", index=True)
+    customer_id: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    conversation_id: Mapped[str] = mapped_column(String(30), index=True)
+    purpose: Mapped[str] = mapped_column(String(60), index=True)
+    text_version: Mapped[str] = mapped_column(String(20), default="v1")
+    granted: Mapped[bool] = mapped_column(Boolean, default=False)
+    assurance_level: Mapped[str] = mapped_column(String(10), default="AL0")
+    granted_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), default=_ts)
+
+
 class IntentRow(Base):
     __tablename__ = "intent_classification"
     intent_id: Mapped[str] = mapped_column(String(30), primary_key=True)

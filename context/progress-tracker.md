@@ -383,3 +383,21 @@ This update supersedes the earlier “Unit 04 specification prepared; implementa
   - `npm --prefix web-workspace run build` passed cleanly (`✓ 54 modules transformed`, `built in 1.80s`).
   - `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` passed (6/6 tests passed).
 
+
+## Four-Tier Customer Access Model for Live Chat (2026-11-19)
+
+- **Requirement:** make the customer live chat usable without login for public information (product info, service hours) while escalating higher-impact requests through progressively stronger verification. The security question must never be the only control.
+- **Implemented:**
+  1. **Tier policy module (`app/modules/access_tiers.py`):** server-side mapping of intents/tools to Tier 1 Public Information (no login), Tier 2 Personal Inquiry (customer session/AL1), Tier 3 Sensitive Request (step-up OTP/AL2 + consent), and Tier 4 High-Risk Action (human approval only). The UI never supplies the tier.
+  2. **LangGraph enforcement (`app/modules/agent_graph.py`):** `triage_node` evaluates the tier on every turn and returns `verification_required`/`consent_required`; new `verification_node` and `consent_node` route before `tool_node`. `tool_node` re-checks consent as defense in depth. The graph/routing language is preserved (still LangGraph `run_turn_langgraph` via `orchestrator.run_turn`).
+  3. **Signed guest sessions (`app/core/guest_session.py`, `app/modules/routes_a.py`):** anonymous chat issues a short-lived guest token bound to one conversation and the configured public tenant. `POST /v1/chat/messages` and `GET /v1/conversations/{id}/read-model` accept it through `X-Guest-Session`; a guessed conversation ID no longer exposes the transcript. Guests can claim a conversation after login only with the signed proof (`POST /v1/customer/guest-session/claim`).
+  4. **Step-up, consent, and session visibility:** `POST /v1/customer/chat/step-up/challenge`, `/step-up/verify`, `/consent`, and `GET /v1/customer/chat/session` expose OTP step-up, durable consent capture (`customer_consent` table), expiry metadata, and lock state. The dev OTP simulator returns the code only to the caller (`TEST_MODE` or `ENVIRONMENT=development` with `OTP_SIMULATOR_ENABLED`) and never writes it to the transcript/audit log.
+  5. **Customer chat UI (`web-workspace/src/pages/customer/CustomerChat.jsx`, `web-workspace/src/styles/chat.css`):** guest mode sends with `auth: 'optional'`, persists the signed guest token, skips account-only history calls, and shows tier badge/hints, login boundary, OTP simulator + code entry, consent checkbox, failed-attempt/lockout messaging, session-expiry chip, and the Tier 4 human-approval notice. Login automatically claims a matching guest conversation.
+  6. **Intent/handoff corrections:** informational refund-policy questions are classified as `INFO_PRODUCT_POLICY` instead of a transaction dispute; mandatory-handoff responses preserve `VULNERABILITY`/`REPEAT_CONTACT` reasons instead of flattening them to `MANDATORY_HUMAN_HANDOFF`.
+- **Preserved:** complaint submission/tracking endpoints and dual-tab UI, the LangGraph decision loop, and RAG human-like formatting/metadata filtering.
+- **Verification:**
+  - `python -m pytest tests/test_agent_graph.py tests/test_customer_complaints.py -v` — 6 passed.
+  - `python -m pytest tests/test_access_tiers.py -v` — 7 passed (guest public info + signed session, guest Tier 2 boundary, authenticated Tier 2, Tier 3 OTP + consent + execution, failed-OTP attempts, Tier 4 approval-only, guest claim/replay).
+  - `python -m pytest tests/test_rag_chat.py tests/test_security_auth.py -q` — all pass except the pre-existing `test_relevant_sources_with_unavailable_llm_return_error_not_handoff` case, which also fails at `HEAD`.
+  - `node node_modules/vite/bin/vite.js build` — production build passed (54 modules).
+  - Full suite: 176 passed, 1 skipped, 6 failed; all 6 failures were reproduced in a clean `HEAD` worktree (Gemini prompt, PDF/retry/search knowledge-document cases, unavailable-LLM RAG case).

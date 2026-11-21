@@ -77,8 +77,8 @@ export default function App() {
 
   const customerRoute = route?.audience === 'customer'
   const isPublic = !isStaff && (path === '/' || path === '/customer/login' || path === '/staff/login' || path === '/login')
-  const permitted = customerRoute ? role === 'customer' : Array.isArray(route?.audience) ? route.audience.includes(role) : route?.audience === role
-  const needsAuth = !isPublic && !session
+  const permitted = customerRoute ? (path === '/customer/chat' ? true : role === 'customer') : Array.isArray(route?.audience) ? route.audience.includes(role) : route?.audience === role
+  const needsAuth = !isPublic && !session && path !== '/customer/chat'
   const navItems = isPublic || (customerRoute && (!session || role === 'customer')) ? CUSTOMER_LINKS : staffNavigationFor(role)
   const title = route?.title || (isPublic ? 'Layanan pelanggan' : 'Halaman tidak ditemukan')
   const Page = PAGE_COMPONENTS[route?.page]

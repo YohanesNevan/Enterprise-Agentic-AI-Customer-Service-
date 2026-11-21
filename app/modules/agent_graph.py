@@ -23,6 +23,7 @@ from . import guardrail as Grd
 from . import intent as IntentSvc
 from . import knowledge as KmSvc
 from . import tool_gateway as Gw
+from . import access_tiers as Tiers
 from .orchestrator import (
     DEGRADED,
     _compose_action_answer,
@@ -50,6 +51,11 @@ class AgentState(TypedDict, total=False):
     tenant_id: str
     turn_id: str
     assurance_level: str
+    authenticated: bool
+    access_tier: int
+    verification_required: dict[str, Any] | None
+    consent_required: dict[str, Any] | None
+    human_approval_required: bool
 
     # Routing & Intent
     intent: dict[str, Any]
@@ -109,11 +115,16 @@ def triage_node(state: AgentState) -> dict[str, Any]:
     al = sess.assurance_level if sess else "AL0"
     if sess:
         al = AuthSvc.check_session(sess)
-    if al == "AL0":
-        from .models_a import ConversationRow as _CR
-        c_row = db.query(_CR).filter_by(conversation_id=conv_id).first()
-        if c_row and c_row.customer_id:
-            al = "AL2"
+
+    from .models_a import ConversationRow as _CR
+    c_row = db.query(_CR).filter_by(conversation_id=conv_id).first()
+    authenticated = state.get("authenticated")
+    if authenticated is None:
+        # Compatibility for service/internal callers: an owned conversation is
+        # treated as authenticated unless the caller states otherwise.
+        authenticated = bool(c_row and c_row.customer_id)
+    if authenticated and al not in ("AL1", "AL2", "AL3"):
+        al = "AL1"
 
     # 3. Intent classification & Context Tracking (TRD §8.2)
     cls = IntentSvc.classify(text, conv_id, corr)
@@ -141,8 +152,41 @@ def triage_node(state: AgentState) -> dict[str, Any]:
     tool_info = _need_tool(cls, conv_id)
     tool_name, tool_args = tool_info if tool_info else (None, None)
 
+    # 5. Access-tier evaluation (server-side; never trusts a UI-supplied tier)
+    tier = Tiers.tier_for(cls.get("intent_code"), tool_name)
+    if cls.get("handoff_reason") == "HUMAN_ACTION_REQUIRED":
+        tier = max(tier, Tiers.TIER_HIGH_RISK)
+    consent_purpose = Tiers.tier_meta(tier).get("code") or "SENSITIVE_REQUEST"
+    verification_method = Tiers.verification_method(tier, al, bool(authenticated))
+    if c_row is not None and c_row.status == "AWAITING_AUTH" and verification_method is None:
+        # A customer who continues with an allowed request returns to normal AI
+        # handling; AWAITING_AUTH is not a dead end.
+        try:
+            ConvSvc.transition(db, conv_id, "ACTIVE_AI", "verification_satisfied",
+                               {"actor_type": "AI_AGENT", "actor_id": "orchestrator"}, corr)
+        except Exception:
+            db.rollback()
+    consent_required = None
+    if (verification_method is None and Tiers.requires_consent(tier)
+            and not Tiers.needs_human_approval(tier)
+            and not AuthSvc.has_consent(db, conv_id, consent_purpose)):
+        consent_required = {
+            "tier": tier,
+            "tier_code": Tiers.tier_meta(tier)["code"],
+            "purpose": consent_purpose,
+            "text_version": "v1",
+        }
+    audit_svc.emit(
+        tenant_id, corr, "SYSTEM", "orchestrator", "access.tier_evaluated",
+        "conversation", conv_id, "orchestrator", conversation_id=conv_id,
+        after={"tier": tier, "assurance_level": al, "authenticated": bool(authenticated),
+               "verification_method": verification_method},
+    )
+
     return {
         "assurance_level": al,
+        "authenticated": bool(authenticated),
+        "access_tier": tier,
         "intent": cls,
         "decision": cls.get("decision", "ACT"),
         "tool_name": tool_name,
@@ -150,6 +194,13 @@ def triage_node(state: AgentState) -> dict[str, Any]:
         "tool_results": [],
         "tool_calls": [],
         "citations": [],
+        "verification_required": (
+            {"tier": tier, "tier_code": Tiers.tier_meta(tier)["code"],
+             "required_assurance": Tiers.required_assurance(tier),
+             "method": verification_method}
+            if verification_method else None
+        ),
+        "consent_required": consent_required,
     }
 
 
@@ -163,6 +214,19 @@ def route_after_triage(state: AgentState) -> str:
     # Mandatory handoff (human requested or safety flag triggered)
     if decision in ("HUMAN", "HANDOFF") or cls.get("safety_flag"):
         return "handoff_node"
+
+    # Tier 4 is never executed by the AI; it becomes an approval request.
+    if Tiers.needs_human_approval(state.get("access_tier", Tiers.TIER_PUBLIC)):
+        return "handoff_node"
+
+    # Progressive verification: login for personal data, OTP for sensitive
+    # requests. This runs before clarification so a guest gets a clear boundary.
+    if state.get("verification_required"):
+        return "verification_node"
+
+    # Consent capture before a sensitive action executes.
+    if state.get("consent_required"):
+        return "consent_node"
 
     # Clarification required
     if decision == "CLARIFY":
@@ -178,6 +242,103 @@ def route_after_triage(state: AgentState) -> str:
 
     # Knowledge retrieval (default for inquiries)
     return "rag_node"
+
+
+# ---------------------------------------------------------------------------
+# Node 1b: Verification Node (Tier 2 login / Tier 3 step-up)
+# ---------------------------------------------------------------------------
+def verification_node(state: AgentState) -> dict[str, Any]:
+    db: Session = state["db"]
+    conv_id = state["conv_id"]
+    corr = state["corr"]
+    tenant_id = state["tenant_id"]
+    req = state.get("verification_required") or {}
+    tier = int(req.get("tier", Tiers.TIER_PERSONAL))
+    method = req.get("method")
+    required = req.get("required_assurance")
+
+    try:
+        ConvSvc.transition(db, conv_id, "AWAITING_AUTH", "verification_required",
+                           {"actor_type": "AI_AGENT", "actor_id": "orchestrator"}, corr)
+    except Exception:
+        pass
+
+    if method == "SESSION_LOGIN":
+        reply = (
+            "Informasi ini termasuk data pribadi akun Anda (Tier 2: Personal Inquiry). "
+            "Untuk melindungi data Anda, silakan masuk ke akun terlebih dahulu. "
+            "Setelah masuk, saya dapat melanjutkan pemeriksaan status order atau transaksi Anda."
+        )
+    else:
+        reply = (
+            "Permintaan ini termasuk tindakan sensitif (Tier 3: Sensitive Request), seperti "
+            "perubahan data atau pemblokiran layanan. Saya memerlukan verifikasi keamanan "
+            "tambahan berupa kode OTP ke kanal terdaftar Anda sebelum melanjutkan. "
+            "Pertanyaan keamanan saja tidak cukup untuk tindakan ini."
+        )
+
+    ConvSvc.append_outbound(db, conv_id, reply)
+    audit_svc.emit(
+        tenant_id, corr, "SYSTEM", "orchestrator", "access.verification_required",
+        "conversation", conv_id, "orchestrator", conversation_id=conv_id,
+        result=str(method), after={"tier": tier, "required_assurance": required},
+    )
+    _log_routing(tenant_id, conv_id, corr, state.get("intent", {}), "NOT_RUN",
+                 handoff="VERIFICATION_REQUIRED", routing_reason="VERIFICATION_REQUIRED")
+
+    return {
+        "verification_required": {**req, "conversation_id": conv_id},
+        "reply": reply,
+        "handoff": False,
+        "reason": "VERIFICATION_REQUIRED",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Node 1c: Consent Node (Tier 3/4 consent capture)
+# ---------------------------------------------------------------------------
+CONSENT_COPY = {
+    "SENSITIVE_REQUEST": {
+        "title": "Persetujuan permintaan sensitif",
+        "summary": (
+            "Saya akan memproses perubahan/pemblokiran atas permintaan Anda setelah "
+            "verifikasi OTP. Data yang diproses terbatas pada kebutuhan permintaan ini."
+        ),
+    },
+    "HIGH_RISK_ACTION": {
+        "title": "Persetujuan penyiapan permintaan berisiko tinggi",
+        "summary": (
+            "AI hanya menyiapkan permintaan untuk ditinjau petugas. Tidak ada tindakan "
+            "berisiko tinggi yang dijalankan otomatis."
+        ),
+    },
+}
+
+
+def consent_node(state: AgentState) -> dict[str, Any]:
+    db: Session = state["db"]
+    conv_id = state["conv_id"]
+    corr = state["corr"]
+    tenant_id = state["tenant_id"]
+    req = state.get("consent_required") or {}
+    purpose = req.get("purpose", "SENSITIVE_REQUEST")
+    copy = CONSENT_COPY.get(purpose, CONSENT_COPY["SENSITIVE_REQUEST"])
+    reply = f"{copy['title']}. {copy['summary']} Silakan berikan persetujuan untuk melanjutkan."
+    ConvSvc.append_outbound(db, conv_id, reply)
+    audit_svc.emit(
+        tenant_id, corr, "SYSTEM", "orchestrator", "consent.required",
+        "conversation", conv_id, "orchestrator", conversation_id=conv_id,
+        after={"purpose": purpose, "tier": req.get("tier")},
+    )
+    _log_routing(tenant_id, conv_id, corr, state.get("intent", {}), "NOT_RUN",
+                 routing_reason="CONSENT_REQUIRED")
+    return {
+        "consent_required": {**req, "conversation_id": conv_id,
+                             "title": copy["title"], "summary": copy["summary"]},
+        "reply": reply,
+        "handoff": False,
+        "reason": "CONSENT_REQUIRED",
+    }
 
 
 def _format_clarification_question(intent_code: str, text: str = "") -> str:
@@ -260,6 +421,23 @@ def tool_node(state: AgentState) -> dict[str, Any]:
     tool = state["tool_name"]
     args = state["tool_args"] or {}
     cls = state["intent"]
+    tier = int(state.get("access_tier", Tiers.TIER_PERSONAL))
+
+    # Defense in depth: a sensitive tool never executes without recorded consent.
+    if Tiers.requires_consent(tier):
+        purpose = Tiers.tier_meta(tier).get("code") or "SENSITIVE_REQUEST"
+        if not AuthSvc.has_consent(db, conv_id, purpose):
+            reply = ("Sebelum saya memproses permintaan sensitif ini, saya memerlukan "
+                     "persetujuan Anda. Silakan berikan persetujuan pada panel yang tersedia.")
+            ConvSvc.append_outbound(db, conv_id, reply)
+            copy = CONSENT_COPY.get(purpose, CONSENT_COPY["SENSITIVE_REQUEST"])
+            return {
+                "consent_required": {"tier": tier, "purpose": purpose,
+                                     "text_version": "v1", "conversation_id": conv_id,
+                                     "title": copy["title"],
+                                     "summary": copy["summary"]},
+                "reply": reply, "handoff": False, "reason": "CONSENT_REQUIRED",
+            }
 
     # 1. Policy & Assurance check via Tool Gateway
     actor = state.get("actor", "AI_AGENT")
@@ -277,13 +455,23 @@ def tool_node(state: AgentState) -> dict[str, Any]:
                                 {"actor_type": "AI_AGENT", "actor_id": "orchestrator"}, corr)
         except Exception:
             pass
-        reply = (
-            "Untuk memproses permintaan transaksi atau informasi rekening Anda secara aman, "
-            "silakan masuk (*login*) terlebih dahulu ke akun layanan terdaftar Anda."
-        )
+        sess = _sess(db, conv_id, state.get("channel", "WEB_CHAT"))
+        required_al = dec.get("required", "AL1")
+        if al == "AL0":
+            reply = (
+                "Untuk memproses permintaan data akun, status transaksi, atau order Anda "
+                "(Tier 2: Personal Inquiry), silakan masuk (*login*) terlebih dahulu ke akun nasabah Anda."
+            )
+        else:
+            reply = (
+                "Permintaan ini termasuk tindakan sensitif (Tier 3: Sensitive Request). "
+                "Diperlukan verifikasi keamanan tambahan (*step-up authentication* via simulasi OTP) "
+                "demi perlindungan akun Anda."
+            )
         ConvSvc.append_outbound(db, conv_id, reply)
         return {
-            "stepup_required": dec.get("required"),
+            "stepup_required": required_al,
+            "channel_session_id": sess.channel_session_id if sess else None,
             "reply": reply,
             "handoff": False,
             "reason": "STEPUP_REQUIRED",
@@ -581,12 +769,27 @@ def handoff_node(state: AgentState) -> dict[str, Any]:
     corr = state["corr"]
     tenant_id = state["tenant_id"]
     cls = state.get("intent", {})
-    reason = "KNOWLEDGE_GAP" if state.get("zero_result") else "MANDATORY_HUMAN_HANDOFF"
+    classifier_reason = cls.get("handoff_reason")
+    if classifier_reason == "HUMAN_ACTION_REQUIRED":
+        reason = "HUMAN_ACTION_REQUIRED"
+    elif state.get("zero_result"):
+        reason = "KNOWLEDGE_GAP"
+    elif classifier_reason in ("VULNERABILITY", "REPEAT_CONTACT"):
+        # Preserve the safety/escalation reason the classifier established.
+        reason = classifier_reason
+    else:
+        reason = "MANDATORY_HUMAN_HANDOFF"
 
     handoff = _queue_handoff(db, conv_id, reason, corr, tenant_id, cls)
     h_state = handoff.get("state", "UNAVAILABLE")
 
-    if state.get("zero_result"):
+    if reason == "HUMAN_ACTION_REQUIRED":
+        reply = (
+            "Permintaan ini termasuk tindakan berisiko tinggi (Tier 4: High-Risk Action). "
+            "AI hanya menyiapkan permohonan tiket dan tidak dapat mengeksekusi langsung tanpa otorisasi. "
+            "Permintaan Anda telah disiapkan dan diteruskan ke antrean petugas untuk peninjauan dan persetujuan resmi (*human approval*)."
+        )
+    elif state.get("zero_result"):
         reply = (
             "Saya tidak menemukan sumber resmi yang cukup untuk memverifikasi jawaban. "
             + (
@@ -601,11 +804,20 @@ def handoff_node(state: AgentState) -> dict[str, Any]:
     ConvSvc.append_outbound(db, conv_id, reply)
     _log_routing(tenant_id, conv_id, corr, cls, "HANDOFF", handoff=h_state)
 
+    tier = int(state.get("access_tier", Tiers.TIER_PUBLIC))
+    human_approval = bool(reason == "HUMAN_ACTION_REQUIRED" or Tiers.needs_human_approval(tier))
+    if human_approval:
+        audit_svc.emit(
+            tenant_id, corr, "AI_AGENT", "orchestrator", "access.human_approval_requested",
+            "conversation", conv_id, "orchestrator", conversation_id=conv_id,
+            after={"tier": tier, "handoff_state": h_state, "reason": reason},
+        )
     return {
         "reply": reply,
         "handoff": h_state != "UNAVAILABLE",
         "handoff_status": h_state,
         "reason": reason,
+        "human_approval_required": human_approval,
     }
 
 
@@ -619,6 +831,8 @@ def build_agent_graph():
     builder.add_node("triage_node", triage_node)
     builder.add_node("clarify_node", clarify_node)
     builder.add_node("greeting_node", greeting_node)
+    builder.add_node("verification_node", verification_node)
+    builder.add_node("consent_node", consent_node)
     builder.add_node("tool_node", tool_node)
     builder.add_node("rag_node", rag_node)
     builder.add_node("llm_node", llm_node)
@@ -634,6 +848,8 @@ def build_agent_graph():
         {
             "clarify_node": "clarify_node",
             "greeting_node": "greeting_node",
+            "verification_node": "verification_node",
+            "consent_node": "consent_node",
             "tool_node": "tool_node",
             "rag_node": "rag_node",
             "handoff_node": "handoff_node",
@@ -655,6 +871,8 @@ def build_agent_graph():
     # Terminal edges
     builder.add_edge("clarify_node", END)
     builder.add_edge("greeting_node", END)
+    builder.add_edge("verification_node", END)
+    builder.add_edge("consent_node", END)
     builder.add_edge("tool_node", END)
     builder.add_edge("llm_node", END)
     builder.add_edge("handoff_node", END)
@@ -674,6 +892,7 @@ def run_turn_langgraph(
     channel: str = "WEB_CHAT",
     actor: str = "AI_AGENT",
     tenant_id: str = "TNT-TEST",
+    authenticated: bool | None = None,
 ) -> dict[str, Any]:
     """Execute customer turn using the compiled LangGraph workflow."""
     turn_id = new_id("turn")
@@ -687,6 +906,8 @@ def run_turn_langgraph(
         "tenant_id": tenant_id,
         "turn_id": turn_id,
     }
+    if authenticated is not None:
+        initial_state["authenticated"] = bool(authenticated)
 
     final_state = agentic_workflow.invoke(initial_state)
 
@@ -698,7 +919,16 @@ def run_turn_langgraph(
         "handoff_status": final_state.get("handoff_status"),
         "reason": final_state.get("reason"),
         "citations": final_state.get("citations", []),
+        "access_tier": final_state.get("access_tier", Tiers.TIER_PUBLIC),
+        "assurance_level": final_state.get("assurance_level", "AL0"),
     }
+    if final_state.get("verification_required"):
+        result["verification_required"] = final_state["verification_required"]
+        result["stepup_required"] = final_state["verification_required"].get("required_assurance")
+    if final_state.get("consent_required"):
+        result["consent_required"] = final_state["consent_required"]
+    if final_state.get("human_approval_required"):
+        result["human_approval_required"] = True
     if final_state.get("stepup_required"):
         result["stepup_required"] = final_state["stepup_required"]
     if final_state.get("generation_error"):

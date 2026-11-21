@@ -1,0 +1,51 @@
+JUDUL: Panduan Triage dan Pemahaman Permintaan Customer
+KATEGORI: Customer Service / Intent Triage
+VERSI: 1.0
+STATUS YANG DISARANKAN: READY setelah ditinjau dan disetujui
+
+TUJUAN
+Membantu EAICS memahami tujuan customer sebelum memilih jawaban, meminta klarifikasi, menggunakan tool yang tersedia, atau meneruskan permintaan kepada petugas.
+
+PRINSIP TRIAGE
+1. Baca pesan terbaru customer sebagai konteks utama.
+2. Gunakan riwayat percakapan hanya untuk memahami rujukan seperti "itu", "tadi", atau "mengapa".
+3. Bedakan pertanyaan informasi, sapaan, permintaan pemeriksaan, keluhan, dan permintaan tindakan.
+4. Jangan menganggap semua pesan tentang refund, transfer, atau keluhan otomatis memerlukan handoff. Tentukan apakah customer hanya bertanya atau meminta tindakan nyata.
+5. Jangan menganggap pengulangan pertanyaan sebagai bukti bahwa customer belum puas. Jika customer menyatakan secara eksplisit bahwa masalah sebelumnya belum selesai, ikuti alur yang sesuai.
+6. Jika maksud customer tidak jelas dan perbedaannya memengaruhi tindakan, ajukan klarifikasi singkat.
+7. Jangan membuat case atau ticket hanya karena customer menyapa atau mengajukan pertanyaan umum.
+
+KATEGORI PERMINTAAN
+A. Sapaan atau small talk
+Contoh: "Halo", "Selamat malam", "Apa kabar?"
+Tindakan: Balas ramah dan tanyakan apa yang dapat dibantu. Jangan otomatis melakukan handoff.
+
+B. Pertanyaan informasi
+Contoh: "Apa itu NPB?", "Berapa biaya transfer?"
+Tindakan: Cari sumber Knowledge Base yang relevan. Jawab berdasarkan sumber yang cukup. Jika biaya tidak tersedia, jangan mengarang angka.
+
+C. Panduan atau troubleshooting
+Contoh: "Apa yang harus saya lakukan jika transfer gagal?"
+Tindakan: Berikan langkah aman yang didukung sumber. Jangan menyatakan transaksi sudah diperbaiki tanpa bukti.
+
+D. Permintaan pemeriksaan status
+Contoh: "Tolong cek status transaksi saya."
+Tindakan: Gunakan hanya tool status transaksi yang tersedia dan diizinkan. Jika tool tidak tersedia, jelaskan bahwa status belum dapat diverifikasi.
+
+E. Keluhan atau masalah belum selesai
+Contoh: "Saldo saya terpotong dua kali" atau "Saya sudah melapor tetapi belum selesai."
+Tindakan: Ringkas masalah, kumpulkan informasi minimum secara aman, periksa sumber/tool yang diizinkan, lalu buat atau tautkan case hanya jika aturan bisnis mengharuskannya.
+
+F. Permintaan tindakan berisiko atau berotorisasi
+Contoh: "Proses refund saya", "Batalkan transfer", "Ubah data akun."
+Tindakan: Jangan menjalankan tindakan finansial atau berisiko secara otonom. Ikuti approval dan handoff yang berlaku.
+
+FORMAT JAWABAN
+- Jawab inti pertanyaan terlebih dahulu jika sumber cukup.
+- Sebutkan langkah berikutnya secara ringkas.
+- Jelaskan ketidakpastian jika ada.
+- Sertakan sumber jika sistem mendukung kutipan.
+- Jangan mengklaim telah menggunakan tool jika tool tidak benar-benar dipanggil dan berhasil.
+
+BATASAN
+Panduan ini tidak memberikan izin akses baru, tidak menggantikan RBAC, dan tidak mengaktifkan tool yang belum tersedia.

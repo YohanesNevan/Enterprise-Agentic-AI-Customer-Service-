@@ -1,6 +1,86 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ApiError, req } from '../../api.js'
+import { ApiError, getAuthSession, req, subscribeAuth } from '../../api.js'
 import { customerConversationState, navigate } from '../../shared/navigation.js'
+
+const GUEST_SESSION_KEY = 'eaics_guest_chat_session'
+
+const TIER_META = {
+  1: {
+    code: 'PUBLIC_INFORMATION',
+    label: 'Informasi Publik',
+    hint: 'Tanpa login. Jawaban dibatasi pada informasi produk & layanan.',
+  },
+  2: {
+    code: 'PERSONAL_INQUIRY',
+    label: 'Pertanyaan Pribadi',
+    hint: 'Status order/transaksi hanya setelah masuk ke akun Anda.',
+  },
+  3: {
+    code: 'SENSITIVE_REQUEST',
+    label: 'Permintaan Sensitif',
+    hint: 'Perubahan data/pemblokiran memerlukan OTP dan persetujuan Anda.',
+  },
+  4: {
+    code: 'HIGH_RISK_ACTION',
+    label: 'Tindakan Berisiko Tinggi',
+    hint: 'AI hanya menyiapkan permintaan; petugas wajib menyetujui.',
+  },
+}
+
+function readStoredGuestSession() {
+  try {
+    const raw = sessionStorage.getItem(GUEST_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed && parsed.token && parsed.conversationId ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function storeGuestSession(guestSession) {
+  if (!guestSession?.session_token || !guestSession?.conversation_id) return null
+  const record = {
+    token: guestSession.session_token,
+    conversationId: guestSession.conversation_id,
+    expiresAt: guestSession.expires_in
+      ? new Date(Date.now() + guestSession.expires_in * 1000).toISOString()
+      : null,
+  }
+  try {
+    sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(record))
+  } catch {
+    return record
+  }
+  return record
+}
+
+function guestTokenFor(conversationId) {
+  const stored = readStoredGuestSession()
+  if (!stored || !conversationId) return null
+  return stored.conversationId === conversationId ? stored.token : null
+}
+
+function clearStoredGuestSession() {
+  try {
+    sessionStorage.removeItem(GUEST_SESSION_KEY)
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function formatClock(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+
+function tierOf(value) {
+  const tier = Number(value)
+  return TIER_META[tier] ? tier : 1
+}
+
 
 function formatConversationTime(value) {
   const date = new Date(value)
@@ -53,6 +133,7 @@ function CustomerChatHistoryPanel({
   open,
   onClose,
   busy,
+  authenticated,
 }) {
   return (
     <aside
@@ -114,6 +195,23 @@ function CustomerChatHistoryPanel({
           <div className="chat-history-state" role="status">
             <span className="chat-history-spinner" aria-hidden="true" />
             <p>Memuat riwayat...</p>
+          </div>
+        ) : !authenticated ? (
+          <div className="chat-history-state chat-history-guest" role="status">
+            <p>Riwayat chat tersedia setelah Anda masuk ke akun.</p>
+            <p className="chat-history-guest-note">
+              Anda tetap dapat bertanya tentang informasi publik tanpa login.
+            </p>
+            <a
+              className="btn sm primary"
+              href="/customer/login"
+              onClick={(event) => {
+                event.preventDefault()
+                navigate('/customer/login')
+              }}
+            >
+              Masuk untuk Riwayat ↗
+            </a>
           </div>
         ) : error ? (
           <div className="chat-history-state chat-history-error" role="alert">
@@ -358,7 +456,18 @@ export default function CustomerChat() {
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [showScrollBottom, setShowScrollBottom] = useState(false)
+  const [authSession, setAuthSession] = useState(null)
+  const [guestSession, setGuestSession] = useState(readStoredGuestSession)
+  const [sessionInfo, setSessionInfo] = useState(null)
+  const [tier, setTier] = useState(null)
+  const [stepUp, setStepUp] = useState(null)
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [consentBusy, setConsentBusy] = useState(false)
+  const [pendingText, setPendingText] = useState(null)
   const submitLock = useRef(false)
+  const authSessionRef = useRef(null)
+  const claimAttemptedRef = useRef(false)
+  const accountLoadDoneRef = useRef(false)
   const messagesEndRef = useRef(null)
   const transcriptRef = useRef(null)
   const isNearBottomRef = useRef(true)
@@ -387,6 +496,12 @@ export default function CustomerChat() {
   }, [])
 
   const loadHistory = useCallback(async (search, cursor = null, append = false) => {
+    if (!authSessionRef.current) {
+      // Guest mode: conversation history belongs to an account.
+      setHistoryLoading(false)
+      setHistoryError(null)
+      return
+    }
     const requestId = ++historyRequestRef.current
     setHistoryLoading(true)
     setHistoryError(null)
@@ -488,12 +603,22 @@ export default function CustomerChat() {
     setRetryInfo(null)
     setNotice('Sesi percakapan baru siap — kirim pesan untuk memulai obrolan baru.')
     setError(null)
+    setTier(null)
+    setStepUp(null)
+    setPendingText(null)
+    setConsentChecked(false)
     isNearBottomRef.current = true
     setShowScrollBottom(false)
     setHistoryDrawerOpen(false)
   }
 
   const load = useCallback(async (id) => {
+    const guestToken = guestTokenFor(id)
+    if (!authSessionRef.current && !guestToken) {
+      setMessages([])
+      setHistoryLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -502,7 +627,10 @@ export default function CustomerChat() {
       let convStatus = null
       do {
         const suffix = cursor ? `?limit=100&cursor=${encodeURIComponent(cursor)}` : '?limit=100'
-        const data = await req(`/v1/conversations/${encodeURIComponent(id)}/read-model${suffix}`)
+        const data = await req(
+          `/v1/conversations/${encodeURIComponent(id)}/read-model${suffix}`,
+          guestToken ? { auth: 'optional', headers: { 'X-Guest-Session': guestToken } } : {},
+        )
         all.push(...(data.messages || []))
         if (data.conversation?.status) convStatus = data.conversation.status
         cursor = data.next_cursor
@@ -513,7 +641,13 @@ export default function CustomerChat() {
       lastMessageSignatureRef.current = all.map((message) => message.message_id || `${message.sequence_no}:${message.occurred_at}`).join('|')
       setTimeout(() => scrollToBottom(true), 80)
     } catch (err) {
-      setError(err)
+      if (err?.status === 401 && !authSessionRef.current) {
+        clearStoredGuestSession()
+        setGuestSession(null)
+        setNotice('Sesi tamu telah berakhir. Kirim pesan baru untuk memulai percakapan publik.')
+      } else {
+        setError(err)
+      }
     } finally {
       setLoading(false)
     }
@@ -532,9 +666,91 @@ export default function CustomerChat() {
   }, [load])
 
   useEffect(() => {
-    if (!conversationId) return
+    let active = true
+    const apply = async () => {
+      try {
+        const session = await getAuthSession()
+        if (!active) return
+        authSessionRef.current = session || null
+        setAuthSession(session || null)
+        return session
+      } catch {
+        if (!active) return null
+        authSessionRef.current = null
+        setAuthSession(null)
+        return null
+      }
+    }
+    apply()
+    const unsubscribe = subscribeAuth(apply)
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [])
+
+  // After login, load the current conversation with the fresh account session.
+  useEffect(() => {
+    if (!authSession || !conversationId || accountLoadDoneRef.current) return
+    const storedGuest = readStoredGuestSession()
+    if (storedGuest && storedGuest.conversationId === conversationId) {
+      // The claim effect below re-loads after ownership is transferred.
+      return
+    }
+    accountLoadDoneRef.current = true
+    load(conversationId)
+  }, [authSession, conversationId, load])
+
+  // A guest conversation is linked to the account only with the signed guest proof.
+  useEffect(() => {
+    if (!authSession || claimAttemptedRef.current) return
+    const stored = readStoredGuestSession()
+    if (!stored) return
+    if (conversationId && stored.conversationId !== conversationId) return
+    claimAttemptedRef.current = true
+    req('/v1/customer/guest-session/claim', {
+      method: 'POST',
+      body: { conversation_id: stored.conversationId, guest_session_token: stored.token },
+    })
+      .then(async () => {
+        clearStoredGuestSession()
+        setGuestSession(null)
+        setNotice('Percakapan tamu Anda berhasil ditautkan ke akun.')
+        updateActiveConversation(stored.conversationId)
+        await load(stored.conversationId)
+        await loadHistory(historySearch)
+      })
+      .catch(() => {
+        // Ownership could not be transferred; keep the guest transcript readable
+        // only through its guest proof and surface a normal not-found state.
+        load(stored.conversationId)
+      })
+  }, [authSession, historySearch, load, loadHistory, updateActiveConversation])
+
+  // Session-expiry indicator for an authenticated customer.
+  useEffect(() => {
+    if (!authSession || !conversationId) {
+      setSessionInfo(null)
+      return
+    }
+    req(`/v1/customer/chat/session?conversation_id=${encodeURIComponent(conversationId)}`)
+      .then((data) => setSessionInfo(data))
+      .catch(() => setSessionInfo(null))
+  }, [authSession, conversationId])
+
+  useEffect(() => {
+    setConsentChecked(false)
+  }, [tier?.consent?.purpose])
+
+  useEffect(() => {
+    if (!conversationId) return undefined
+    const guestToken = guestTokenFor(conversationId)
+    if (!authSessionRef.current && !guestToken) return undefined
+    const options = guestToken
+      ? { auth: 'optional', headers: { 'X-Guest-Session': guestToken } }
+      : {}
     const timer = setInterval(() => {
-      req(`/v1/conversations/${encodeURIComponent(conversationId)}/read-model?limit=100`)
+      req(`/v1/conversations/${encodeURIComponent(conversationId)}/read-model?limit=100`, options)
         .then((data) => {
           if (data) {
             if (data.conversation?.status) {
@@ -566,13 +782,83 @@ export default function CustomerChat() {
     setError(null)
     setNotice(null)
     setRetryInfo(null)
+    setTier(null)
+    setStepUp(null)
+    setPendingText(null)
     await load(id)
     setHistoryDrawerOpen(false)
   }
 
-  const send = async (event) => {
-    event.preventDefault()
-    const content = text.trim()
+  const noticeFor = (result) => {
+    if (result.verification_required?.method === 'SESSION_LOGIN') {
+      return 'Permintaan ini memerlukan login akun (Tier 2). Silakan masuk untuk melanjutkan.'
+    }
+    if (result.verification_required?.method === 'STEP_UP_OTP') {
+      return 'Permintaan sensitif (Tier 3): verifikasi OTP diperlukan sebelum diproses.'
+    }
+    if (result.consent_required) {
+      return 'Persetujuan Anda diperlukan sebelum permintaan sensitif diproses.'
+    }
+    if (result.human_approval_required) {
+      return 'Permintaan berisiko tinggi (Tier 4) telah disiapkan untuk persetujuan petugas.'
+    }
+    if (result.handoff_status === 'ACCEPTED') return 'Petugas telah menerima permintaan bantuan.'
+    if (result.handoff_status === 'QUEUED' || result.handoff_status === 'OFFERED') {
+      return 'Permintaan bantuan masuk antrean; petugas belum mengonfirmasi penerimaan.'
+    }
+    if (result.handoff_status === 'UNAVAILABLE') {
+      return 'Pesan tersimpan, tetapi status antrean bantuan belum dapat dipastikan.'
+    }
+    return 'Pesan diproses oleh layanan.'
+  }
+
+  const submitMessage = async (content, idempotencyKey) => {
+    const headers = { 'Idempotency-Key': idempotencyKey }
+    const guestToken = guestTokenFor(conversationId)
+    if (guestToken) headers['X-Guest-Session'] = guestToken
+    const canContinue = !!authSessionRef.current || !!guestToken
+    const result = await req('/v1/chat/messages', {
+      method: 'POST',
+      auth: 'optional',
+      body: {
+        text: content,
+        ...(conversationId && canContinue ? { conversation_id: conversationId } : { force_new: true }),
+      },
+      headers,
+    })
+    if (!result.conversation_id) {
+      throw new ApiError(502, 'MISSING_CONVERSATION', 'Layanan tidak mengembalikan referensi percakapan.')
+    }
+    if (result.guest_session) setGuestSession(storeGuestSession(result.guest_session))
+    updateActiveConversation(result.conversation_id)
+    setTier({
+      tier: tierOf(result.access_tier),
+      verification: result.verification_required || null,
+      consent: result.consent_required || null,
+      humanApproval: !!result.human_approval_required,
+      assurance: result.assurance_level || 'AL0',
+    })
+    setPendingText(result.verification_required || result.consent_required ? content : null)
+    if (result.verification_required?.method === 'STEP_UP_OTP') {
+      setStepUp({
+        open: true,
+        challengeId: null,
+        code: '',
+        simulatedCode: null,
+        error: null,
+        busy: false,
+        attemptsRemaining: null,
+      })
+    } else {
+      setStepUp(null)
+    }
+    if (result.handoff_status) {
+      setConversationStatus(result.handoff_status === 'ACCEPTED' ? 'ACTIVE_HUMAN' : 'PENDING_HANDOFF')
+    }
+    return result
+  }
+
+  const runSubmission = async (content, retryKey = null) => {
     if (!content || submitLock.current) return
     submitLock.current = true
     setSending(true)
@@ -580,38 +866,139 @@ export default function CustomerChat() {
     setNotice(null)
     isNearBottomRef.current = true
     scrollToBottom(true)
-    const idempotencyKey = retryInfo?.text === content ? retryInfo.key : crypto.randomUUID()
+    const idempotencyKey = retryKey || crypto.randomUUID()
     try {
-      const result = await req('/v1/chat/messages', {
-        method: 'POST',
-        body: { text: content, ...(conversationId ? { conversation_id: conversationId } : { force_new: true }) },
-        headers: { 'Idempotency-Key': idempotencyKey }
-      })
-      if (!result.conversation_id) throw new ApiError(502, 'MISSING_CONVERSATION', 'Layanan tidak mengembalikan referensi percakapan.')
-      updateActiveConversation(result.conversation_id)
-      if (result.handoff_status) {
-        setConversationStatus(result.handoff_status === 'ACCEPTED' ? 'ACTIVE_HUMAN' : 'PENDING_HANDOFF')
-      }
+      const result = await submitMessage(content, idempotencyKey)
       setRetryInfo(null)
       setText('')
-      setNotice(
-        result.handoff_status === 'ACCEPTED'
-          ? 'Petugas telah menerima permintaan bantuan.'
-          : result.handoff_status === 'QUEUED' || result.handoff_status === 'OFFERED'
-          ? 'Permintaan bantuan masuk antrean; petugas belum mengonfirmasi penerimaan.'
-          : result.handoff_status === 'UNAVAILABLE'
-          ? 'Pesan tersimpan, tetapi status antrean bantuan belum dapat dipastikan.'
-          : 'Pesan diproses oleh layanan.'
-      )
+      setNotice(noticeFor(result))
       await load(result.conversation_id)
       await loadHistory(historySearch)
       scrollToBottom(true)
     } catch (err) {
       setRetryInfo({ text: content, key: idempotencyKey })
       setError(err)
+      if (!authSessionRef.current && err?.status === 401) {
+        clearStoredGuestSession()
+        setGuestSession(null)
+        updateActiveConversation(null)
+      }
     } finally {
       submitLock.current = false
       setSending(false)
+    }
+  }
+
+  const send = (event) => {
+    event.preventDefault()
+    const content = text.trim()
+    if (!content) return
+    return runSubmission(content, retryInfo?.text === content ? retryInfo.key : null)
+  }
+
+  const resumePending = () => {
+    const content = (pendingText || '').trim()
+    if (!content) return
+    setText(content)
+    return runSubmission(content)
+  }
+
+  const startStepUp = async () => {
+    if (!conversationId || !tier?.verification) return
+    setStepUp((current) => ({ ...(current || {}), open: true, busy: true, error: null }))
+    try {
+      const data = await req('/v1/customer/chat/step-up/challenge', {
+        method: 'POST',
+        body: {
+          conversation_id: conversationId,
+          purpose: tier.verification.tier_code || 'SENSITIVE_REQUEST',
+        },
+      })
+      setStepUp({
+        open: true,
+        challengeId: data.challenge_id,
+        code: '',
+        simulatedCode: data.simulated_code || null,
+        error: null,
+        busy: false,
+        attemptsRemaining: data.max_attempts ?? null,
+      })
+      setNotice('Kode OTP telah dikirim ke kanal terdaftar Anda.')
+    } catch (err) {
+      const message = err?.status === 429
+        ? 'Terlalu banyak permintaan verifikasi. Coba lagi nanti atau minta bantuan petugas.'
+        : err.message
+      setStepUp((current) => ({ ...(current || {}), open: true, busy: false, error: message }))
+    }
+  }
+
+  const verifyStepUp = async (event) => {
+    event.preventDefault()
+    if (!conversationId || !stepUp?.challengeId || !stepUp.code) return
+    setStepUp((current) => ({ ...current, busy: true, error: null }))
+    try {
+      const data = await req('/v1/customer/chat/step-up/verify', {
+        method: 'POST',
+        body: {
+          conversation_id: conversationId,
+          challenge_id: stepUp.challengeId,
+          code: stepUp.code,
+        },
+      })
+      if (data.verified) {
+        setStepUp(null)
+        setTier((current) => (current
+          ? { ...current, verification: null, assurance: data.assurance_level || 'AL2' }
+          : current))
+        setSessionInfo((current) => ({
+          ...(current || {}),
+          assurance_level: data.assurance_level,
+          al_expires_at: data.expires_at || current?.al_expires_at,
+        }))
+        setNotice('Verifikasi OTP berhasil. Lanjutkan permintaan Anda.')
+      } else {
+        setStepUp((current) => ({
+          ...current,
+          busy: false,
+          code: '',
+          attemptsRemaining: data.attempts_remaining,
+        }))
+        setNotice(`Kode OTP belum cocok. Sisa percobaan: ${data.attempts_remaining}.`)
+      }
+    } catch (err) {
+      const message = err?.status === 429
+        ? 'Verifikasi terkunci sementara karena percobaan gagal berulang. Permintaan akan dialihkan ke petugas.'
+        : err?.status === 404
+        ? 'Kode verifikasi tidak berlaku lagi. Silakan kirim ulang kode OTP.'
+        : err.message
+      setStepUp((current) => ({ ...current, busy: false, error: message }))
+    }
+  }
+
+  const decideConsent = async (granted) => {
+    if (!conversationId || !tier?.consent) return
+    setConsentBusy(true)
+    try {
+      await req('/v1/customer/chat/consent', {
+        method: 'POST',
+        body: {
+          conversation_id: conversationId,
+          purpose: tier.consent.purpose,
+          granted,
+          text_version: tier.consent.text_version || 'v1',
+        },
+      })
+      setTier((current) => (current ? { ...current, consent: null } : current))
+      if (granted) {
+        setNotice('Persetujuan tercatat. Lanjutkan permintaan Anda.')
+      } else {
+        setPendingText(null)
+        setNotice('Permintaan tidak dilanjutkan karena persetujuan tidak diberikan.')
+      }
+    } catch (err) {
+      setError(err)
+    } finally {
+      setConsentBusy(false)
     }
   }
 
@@ -625,6 +1012,20 @@ export default function CustomerChat() {
       }
     }
   }
+
+  const effectiveTier = tier?.tier || (authSession ? 2 : 1)
+  const tierMeta = TIER_META[effectiveTier]
+  const verification = tier?.verification || null
+  const consent = tier?.consent || null
+  const humanApproval = !!tier?.humanApproval
+  const guestExpiry = guestSession?.conversationId === conversationId ? guestSession.expiresAt : null
+  const assuranceChip = authSession
+    ? sessionInfo?.assurance_level && sessionInfo.assurance_level !== 'AL0'
+      ? `${sessionInfo.assurance_level}${sessionInfo.al_expires_at ? ` s.d. ${formatClock(sessionInfo.al_expires_at)}` : ''}`
+      : 'Sesi akun aktif'
+    : guestExpiry
+    ? `Tamu s.d. ${formatClock(guestExpiry)}`
+    : null
 
   return (
     <div className="chat-layout-container">
@@ -654,6 +1055,7 @@ export default function CustomerChat() {
         open={historyDrawerOpen}
         onClose={() => setHistoryDrawerOpen(false)}
         busy={loading || sending}
+        authenticated={!!authSession}
       />
 
       <div className="chat-container-card chat-main-panel">
@@ -691,6 +1093,11 @@ export default function CustomerChat() {
             </div>
           </div>
           <div className="chat-header-actions">
+            {assuranceChip && (
+              <span className="source-chip" title="Status sesi dan masa berlaku verifikasi">
+                {assuranceChip}
+              </span>
+            )}
             {conversationId && (
               <span className="source-chip" title="ID Sesi Percakapan" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                 ID: {conversationId.slice(0, 8)}...
@@ -714,6 +1121,166 @@ export default function CustomerChat() {
           </div>
         </div>
 
+        <div className={`chat-access-bar tier-${effectiveTier}`} role="status">
+          <span className={`chat-tier-badge tier-${effectiveTier}`}>
+            Tier {effectiveTier} · {tierMeta.label}
+          </span>
+          <span className="chat-access-hint">{tierMeta.hint}</span>
+          {!authSession && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => navigate('/customer/login')}
+              title="Masuk untuk membuka data pribadi dan tindakan sensitif"
+            >
+              Masuk ke Akun ↗
+            </button>
+          )}
+        </div>
+
+        {verification?.method === 'SESSION_LOGIN' && (
+          <div className="chat-guardrail chat-guardrail-login" role="alert">
+            <strong>Perlu masuk akun (Tier 2)</strong>
+            <p>
+              Status order, saldo, dan transaksi hanya dapat dibuka setelah Anda masuk. Mode tamu
+              hanya menjawab informasi publik.
+            </p>
+            <button
+              type="button"
+              className="btn sm primary"
+              onClick={() => navigate('/customer/login')}
+            >
+              Masuk ke Akun ↗
+            </button>
+          </div>
+        )}
+
+        {(verification?.method === 'STEP_UP_OTP' || stepUp) && (
+          <section className="chat-stepup-card" aria-labelledby="chat-stepup-title">
+            <h4 id="chat-stepup-title">Verifikasi tambahan (Tier 3)</h4>
+            <p>
+              Tindakan sensitif memerlukan OTP ke kanal terdaftar Anda. Pertanyaan keamanan saja
+              tidak cukup untuk tindakan ini.
+            </p>
+            {!stepUp?.challengeId ? (
+              <button
+                type="button"
+                className="btn sm primary"
+                onClick={startStepUp}
+                disabled={!!stepUp?.busy}
+              >
+                {stepUp?.busy ? 'Mengirim kode...' : 'Kirim Kode OTP'}
+              </button>
+            ) : (
+              <form onSubmit={verifyStepUp} className="chat-stepup-form">
+                {stepUp.simulatedCode && (
+                  <p className="chat-otp-simulator">
+                    Simulator OTP (mode pengembangan): <code>{stepUp.simulatedCode}</code>
+                  </p>
+                )}
+                <label htmlFor="chat-otp-code">Kode OTP</label>
+                <input
+                  id="chat-otp-code"
+                  className="chat-otp-input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={stepUp.code}
+                  onChange={(event) => setStepUp((current) => ({
+                    ...current,
+                    code: event.target.value.replace(/\D/g, ''),
+                  }))}
+                  disabled={!!stepUp.busy}
+                />
+                {stepUp.attemptsRemaining != null && (
+                  <p className="chat-muted">Sisa percobaan: {stepUp.attemptsRemaining}</p>
+                )}
+                <div className="chat-stepup-actions">
+                  <button
+                    type="submit"
+                    className="btn sm primary"
+                    disabled={!!stepUp.busy || stepUp.code.length < 4}
+                  >
+                    {stepUp.busy ? 'Memverifikasi...' : 'Verifikasi'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={startStepUp}
+                    disabled={!!stepUp.busy}
+                  >
+                    Kirim Ulang
+                  </button>
+                </div>
+              </form>
+            )}
+            {stepUp?.error && (
+              <p className="chat-stepup-error" role="alert">{stepUp.error}</p>
+            )}
+            <p className="chat-stepup-foot">Kode OTP tidak pernah disimpan di transkrip percakapan.</p>
+          </section>
+        )}
+
+        {consent && (
+          <section className="chat-consent-card" aria-labelledby="chat-consent-title">
+            <h4 id="chat-consent-title">{consent.title || 'Persetujuan diperlukan'}</h4>
+            <p>
+              {consent.summary
+                || 'Data yang diproses terbatas pada kebutuhan permintaan ini.'}
+            </p>
+            <label className="chat-consent-check">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(event) => setConsentChecked(event.target.checked)}
+              />
+              <span>Saya memahami dan menyetujui pemrosesan untuk permintaan ini.</span>
+            </label>
+            <div className="chat-consent-actions">
+              <button
+                type="button"
+                className="btn sm primary"
+                disabled={!consentChecked || consentBusy}
+                onClick={() => decideConsent(true)}
+              >
+                Berikan Persetujuan
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={consentBusy}
+                onClick={() => decideConsent(false)}
+              >
+                Tolak
+              </button>
+            </div>
+          </section>
+        )}
+
+        {pendingText && !verification && !consent && (
+          <div className="chat-guardrail chat-guardrail-resume">
+            <span>Verifikasi selesai. Permintaan Anda siap dilanjutkan.</span>
+            <button
+              type="button"
+              className="btn sm primary"
+              onClick={resumePending}
+              disabled={sending}
+            >
+              Lanjutkan Permintaan
+            </button>
+          </div>
+        )}
+
+        {humanApproval && (
+          <div className="chat-guardrail chat-guardrail-approval" role="status">
+            <strong>Tindakan berisiko tinggi (Tier 4)</strong>
+            <p>
+              AI hanya menyiapkan permintaan. Tidak ada eksekusi otomatis; petugas wajib meninjau
+              dan menyetujui sebelum tindakan dijalankan.
+            </p>
+          </div>
+        )}
+
       {notice && (
         <div className="alert info chat-notice" role="status" style={{ margin: '14px 20px 0' }}>
           <span>{notice}</span>
@@ -727,8 +1294,10 @@ export default function CustomerChat() {
             <strong>Pesan belum berhasil diproses.</strong>
             <p>
               {error.message}
-              {error.status === 401 ? (
+              {error.status === 401 && authSession ? (
                 <> <a href="/customer/login" onClick={(e) => { e.preventDefault(); navigate('/customer/login') }}>Masuk kembali</a> untuk melanjutkan.</>
+              ) : error.status === 401 ? (
+                ' Sesi tamu Anda berakhir. Kirim ulang pesan untuk memulai sesi publik baru.'
               ) : error.status === 403 ? (
                 ' Hubungi pengelola layanan jika menurut Anda akses ini seharusnya tersedia.'
               ) : (
@@ -810,7 +1379,8 @@ export default function CustomerChat() {
               Ada yang bisa kami bantu hari ini?
             </h2>
             <p style={{ maxWidth: '480px', margin: '0 auto 20px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-              Tanyakan seputar produk cloud, infrastruktur, jam operasional, atau kendala teknis. Asisten agentik kami siap membantu Anda dengan cepat dan akurat.
+              Tanyakan seputar produk cloud, infrastruktur, jam operasional, atau kendala teknis.
+              Anda dapat mulai tanpa login untuk informasi publik; data akun memerlukan verifikasi bertingkat.
             </p>
             <div className="chat-quick-prompts" aria-label="Saran pertanyaan cepat">
               {[
@@ -865,7 +1435,7 @@ export default function CustomerChat() {
           <button
             type="submit"
             className="chat-send-btn"
-            disabled={sending || !text.trim() || error?.status === 401 || error?.status === 403}
+            disabled={sending || !text.trim() || (!!authSession && (error?.status === 401 || error?.status === 403))}
             title="Kirim pesan"
             aria-label="Kirim pesan"
           >
@@ -873,7 +1443,11 @@ export default function CustomerChat() {
           </button>
         </div>
         <div className="chat-composer-footer">
-          <span>🔒 Jangan bagikan kata sandi, OTP, atau informasi kredensial rahasia.</span>
+          <span>
+            {authSession
+              ? '🔒 Jangan bagikan kata sandi, OTP, atau informasi kredensial rahasia.'
+              : '🔒 Mode tamu: hanya informasi publik. Masuk untuk data akun dan tindakan sensitif.'}
+          </span>
           <span>{text.length}/4000</span>
         </div>
       </form>
