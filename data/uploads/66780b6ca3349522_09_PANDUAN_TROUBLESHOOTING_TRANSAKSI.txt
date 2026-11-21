@@ -1,0 +1,44 @@
+JUDUL: Panduan Troubleshooting Transaksi Customer
+KATEGORI: Transaksi / Troubleshooting
+VERSI: 1.0
+STATUS YANG DISARANKAN: READY setelah ditinjau dan disetujui
+
+TUJUAN
+Memberikan panduan aman saat customer melaporkan transfer gagal, status tertunda, transaksi tidak dikenal, atau dugaan transaksi ganda.
+
+PRINSIP UMUM
+1. Jangan menyatakan status transaksi sebagai fakta kecuali diperoleh dari sumber resmi atau tool yang berhasil dijalankan.
+2. Jangan menjanjikan dana pasti kembali, refund pasti disetujui, atau investigasi selesai pada waktu tertentu.
+3. Jangan meminta OTP, PIN, kata sandi, atau nomor kartu lengkap.
+4. Jangan mengarang biaya, limit, nomor kontak, waktu penyelesaian, atau kebijakan yang tidak tersedia.
+5. Bedakan memberikan panduan dengan melakukan tindakan pada transaksi.
+
+TRANSFER GAGAL
+- Pastikan customer membedakan status gagal, tertunda, dan status lain.
+- Jika tersedia tool pemeriksaan status yang berwenang, gunakan sebelum menyampaikan status.
+- Jika tidak ada tool, jelaskan bahwa status belum dapat diverifikasi dari chat ini.
+- Sarankan customer menyimpan bukti transaksi secara aman dan tidak membagikan kredensial rahasia.
+- Jika perlu pemeriksaan transaksi, gunakan alur handoff atau case sesuai kebijakan.
+
+STATUS TERTUNDA
+- Jangan menyimpulkan transaksi berhasil atau gagal tanpa bukti.
+- Periksa status hanya melalui tool resmi jika tersedia.
+- Jika status tidak dapat dipastikan, jelaskan ketidakpastian dan gunakan proses pemeriksaan yang sesuai.
+
+DUGAAN TRANSAKSI GANDA
+- Akui kekhawatiran customer tanpa menyatakan kesalahan sudah terbukti.
+- Tanyakan informasi minimum sesuai kebijakan, misalnya waktu dan referensi transaksi yang tidak sensitif.
+- Jangan meminta data rahasia.
+- Arahkan ke petugas/investigasi sesuai aturan jika diperlukan.
+
+TRANSAKSI TIDAK DIKENAL
+- Sarankan customer tidak membagikan OTP, PIN, kata sandi, atau nomor kartu lengkap.
+- Jangan melakukan perubahan akun atau pemblokiran kecuali ada tool resmi, otorisasi, dan approval.
+- Gunakan alur keamanan dan eskalasi yang berlaku.
+
+CONTOH JAWABAN AMAN
+Customer: "Transfer saya gagal. Apakah uang saya pasti kembali?"
+Jawaban: "Saya belum bisa memastikan hasil transaksi atau pengembalian dana tanpa pemeriksaan yang valid. Status transaksi perlu diperiksa melalui sistem atau petugas yang berwenang. Jangan bagikan OTP, PIN, atau kata sandi di chat ini."
+
+CATATAN
+Dokumen FRD/TRD yang digunakan untuk seed knowledge tidak menetapkan angka biaya transfer, limit, SLA refund, atau nomor layanan resmi. Jangan membuat angka atau kebijakan tersebut sendiri.

@@ -152,6 +152,10 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
     reverse_what_question = bool(re.search(r"\b[\w-]+\s+itu\s+apa[?.!]*$", t))
     generic_question = (top_c < 0.30 and len(t.split()) >= 3 and t.endswith("?")
                         and not human_action)
+    refund_policy_question = (re.search(r"\b(?:refund|pengembalian\s+dana|dana\s+kembali)\b", t) is not None
+                              and re.search(r"\b(?:apakah|jika|kalau|pasti|bisa|dapat|bagaimana|"
+                                            r"syarat|ketentuan|kebijakan|policy)\b", t) is not None
+                              and not human_action)
     informational = (t.startswith(("apa ", "apa?", "bagaimana ", "bagaimana?", "berapa ",
                                    "berapa?", "bolehkah ", "apakah ", "siapa ", "kapan ",
                                    "di mana ", "dimana ", "mengapa ", "mengapa?", "kenapa ",
@@ -188,7 +192,7 @@ def classify(text: str, conversation_id: str, corr: str = "COR-?") -> dict:
         top, top_c, second_c = direct_actions[clean_t][0], direct_actions[clean_t][1], 0.0
     elif human_action:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.95, 0.0
-    elif is_dispute:
+    elif is_dispute and not refund_policy_question:
         top, top_c, second_c = "CMP_TRANSACTION_DISPUTE", 0.90, 0.0
     elif informational and top not in forced_intents and not any(w in t for w in ("ditipu", "penipuan", "diancam", "dipaksa", "saldo", "rekening", "blokir", "mutasi")):
         top, top_c, second_c = "INFO_PRODUCT_POLICY", 0.80, 0.0

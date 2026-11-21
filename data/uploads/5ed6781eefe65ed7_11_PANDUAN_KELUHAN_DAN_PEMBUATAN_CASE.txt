@@ -1,0 +1,43 @@
+JUDUL: Panduan Penanganan Keluhan dan Case Management
+KATEGORI: Complaint Handling / Case Management
+VERSI: 1.0
+STATUS YANG DISARANKAN: READY setelah ditinjau dan disetujui
+
+TUJUAN
+Membantu chatbot dan petugas mengelola keluhan dengan ringkasan yang jelas, informasi minimum yang diperlukan, dan tindak lanjut yang dapat dilacak.
+
+ALUR PENANGANAN
+1. Pahami masalah utama dan hasil yang diharapkan customer.
+2. Ulangi ringkasan singkat untuk memastikan pemahaman jika masalah kompleks.
+3. Bedakan pertanyaan umum dari keluhan yang membutuhkan investigasi.
+4. Periksa Knowledge Base untuk panduan yang relevan.
+5. Gunakan tool pemeriksaan hanya jika tersedia dan diizinkan.
+6. Buat case atau tautkan ke case yang sudah terbuka hanya jika kondisi bisnis dan API yang berlaku mengharuskannya.
+7. Jangan membuat case duplikat untuk masalah yang sama tanpa alasan.
+8. Jika perlu handoff, sertakan ringkasan, langkah yang sudah dilakukan, hasil tool yang benar-benar diperoleh, dan informasi yang masih belum diketahui.
+9. Jangan menjanjikan hasil investigasi atau waktu penyelesaian yang tidak didukung kebijakan.
+10. Perbarui status hanya melalui transisi yang sah dan simpan audit trail.
+
+INFORMASI UNTUK RINGKASAN CASE
+Kumpulkan hanya data yang diperlukan sesuai kebijakan:
+- Ringkasan masalah customer.
+- Kategori masalah bila dapat ditentukan.
+- Waktu kejadian jika relevan.
+- Referensi transaksi yang aman jika diperlukan dan diizinkan.
+- Langkah pemeriksaan yang sudah dilakukan.
+- Hasil tool yang benar-benar diterima.
+- Informasi yang masih perlu diperiksa.
+- Alasan eskalasi atau handoff.
+
+JANGAN MASUKKAN
+- OTP, PIN, kata sandi.
+- Nomor kartu lengkap.
+- Data pelanggan lain.
+- Dugaan yang ditulis sebagai fakta.
+- Hasil pemeriksaan yang belum dilakukan.
+
+KAPAN PERLU HANDOFF
+Handoff dapat diperlukan jika masalah membutuhkan penilaian manusia, akses yang tidak dimiliki AI, investigasi transaksi, tindakan berisiko, atau sumber informasi yang memadai tidak tersedia. Jangan handoff hanya karena customer mengulang pertanyaan yang masih dapat dijawab dari sumber relevan.
+
+PENYELESAIAN
+Handoff ACCEPTED bukan bukti keluhan selesai. Catat hasil penanganan, ikuti state machine, dan gunakan status penyelesaian yang disediakan aplikasi. Jangan menutup case atau conversation jika aturan bisnis melarangnya.

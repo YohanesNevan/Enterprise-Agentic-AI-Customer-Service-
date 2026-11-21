@@ -26,6 +26,17 @@ Knowledge document access uses the verified role map. Human roles in the Staff W
 
 Tenant filters are now applied to the implemented case, ticket, conversation, knowledge, handoff, approval, QA, analytics, audit, and outbox paths; some use joins because their own records have no tenant column. Staff assignment-level access is still not modeled. The schemas also lack a uniform tenant foreign key and migration history, so the joins are a compatibility measure, not a substitute for the approved tenant-schema migration. Audit storage remains in-memory in this skeleton and is not durable. FRD §4.2 remains the permission source of truth.
 
+### Customer access tiers (live chat)
+
+`app/modules/access_tiers.py` is the server-side source of truth for how much verification a chat turn requires. The UI may display the tier but never supplies it.
+
+1. **Tier 1 — Public Information.** Anonymous chat is allowed for knowledge-only turns (`knowledge_search`). The server mints a signed, short-lived guest session (`app/core/guest_session.py`) bound to one conversation and the configured public tenant (`PUBLIC_CHAT_TENANT_ID`, falling back to `DEV_TENANT_ID`/`TNT-TEST`). The guest token is a separate token purpose and is accepted only through `X-Guest-Session`; the conversation ID alone no longer grants transcript access.
+2. **Tier 2 — Personal Inquiry.** Account/transaction/order reads require an authenticated customer session (AL1). A guest turn is answered with a login boundary instead of running the tool.
+3. **Tier 3 — Sensitive Request.** Data changes and service blocking (for example temporary card block) require step-up OTP (AL2) plus recorded, durable consent. Consent is stored in `customer_consent`; a sensitive tool never executes without a granted consent record. The security question is never the sole control.
+4. **Tier 4 — High-Risk Action.** Prohibited/high-impact requests (refunds, reversals, credential changes, and other PROHIBITED tools) are never executed. The AI prepares a request and routes it to human approval.
+
+The LangGraph triage node evaluates the tier on every turn and routes to `verification_node` or `consent_node` before tool execution. The dev-only OTP simulator returns the code solely to the caller (`TEST_MODE` or `ENVIRONMENT=development` with `OTP_SIMULATOR_ENABLED`); the code is never written to the transcript, audit record, or logs. Guest conversations can be attached to an account only with the signed guest proof via `POST /v1/customer/guest-session/claim`.
+
 ## API conventions
 
 Existing routes use `/v1/...`, JSON responses, request correlation middleware, and `AppError` envelopes. Many endpoints accept untyped dictionaries and instantiate `SessionLocal` directly. Preserve compatibility while introducing typed request/response validation and consistent database dependency/service boundaries in separately specified units.

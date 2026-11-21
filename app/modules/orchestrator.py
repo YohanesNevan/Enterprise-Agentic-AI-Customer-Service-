@@ -226,13 +226,15 @@ def _sess(db: Session, conv_id: str, channel: str = "WEB_CHAT") -> ChannelSessio
 
 
 def run_turn(db: Session, conv_id: str, text: str, corr: str,
-             channel: str = "WEB_CHAT", actor: str = "AI_AGENT", tenant_id: str = "TNT-TEST") -> dict:
+             channel: str = "WEB_CHAT", actor: str = "AI_AGENT", tenant_id: str = "TNT-TEST",
+             authenticated: bool | None = None) -> dict:
     # CRITICAL PRESERVATION (RULE 11): Official Agentic Decision Loop is LangGraph StateGraph.
     # Do not bypass or remove this delegation.
     if os.getenv("USE_LANGGRAPH", "true").lower() == "true":
         try:
             from .agent_graph import run_turn_langgraph
-            return run_turn_langgraph(db, conv_id, text, corr, channel=channel, actor=actor, tenant_id=tenant_id)
+            return run_turn_langgraph(db, conv_id, text, corr, channel=channel, actor=actor,
+                                      tenant_id=tenant_id, authenticated=authenticated)
         except Exception as exc:
             _logger.warning("langgraph_turn_failed_fallback: %s", exc)
 
@@ -254,7 +256,7 @@ def run_turn(db: Session, conv_id: str, text: str, corr: str,
 
         if c_row and c_row.customer_id:
 
-            al = "AL2"
+            al = "AL1"
 
     # 03 degraded
 

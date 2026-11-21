@@ -1,5 +1,5 @@
-runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=D:\Capstone_Main\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=stub llm_model=stub-1.0 llm_timeout_ms=10000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=False
-INFO:     Started server process [25228]
+runtime_started environment=development database=postgresql+psycopg:8e840ec2496a knowledge_upload_dir=D:\MataKuliah\Capstone_Clone_lagi\Enterprise-Agentic-AI-Customer-Service-\data\uploads llm_provider=stub llm_model=stub-1.0 llm_timeout_ms=10000 llm_endpoint=https://generativelanguage.googleapis.com llm_sdk=2.31.0 llm_key_configured=False
+INFO:     Started server process [10080]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): only one usage of each socket address (protocol/network address/port) is normally permitted

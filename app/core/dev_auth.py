@@ -41,8 +41,8 @@ def dev_auth_client_allowed(client_host: str | None) -> bool:
     try:
         remote = ipaddress.ip_address(client_host)
     except ValueError:
-        return client_host == "testclient"
-    if remote.is_loopback:
+        return client_host in ("testclient", "localhost")
+    if remote.is_loopback or bool(getattr(remote, "ipv4_mapped", None) and remote.ipv4_mapped.is_loopback):
         return True
     trusted = {item.strip() for item in os.getenv("DEV_AUTH_TRUSTED_CLIENTS", "").split(",") if item.strip()}
     return client_host in trusted

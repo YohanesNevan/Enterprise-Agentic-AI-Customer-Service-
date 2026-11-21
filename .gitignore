@@ -7,6 +7,8 @@ web-workspace/dist/
 **/__pycache__/
 .pytest_cache/
 
+.opencode/
+
 *.log
 .chrome-pdf-profile/
 .edge-pdf-profile/

@@ -1,0 +1,48 @@
+JUDUL: Standar Kualitas Jawaban, Ketidakpastian, dan Handoff
+KATEGORI: AI Response Quality / Escalation
+VERSI: 1.0
+STATUS YANG DISARANKAN: READY setelah ditinjau dan disetujui
+
+TUJUAN
+Menjaga agar jawaban EAICS akurat, konsisten, relevan, dan tidak mengarang informasi ketika sumber tidak cukup.
+
+STANDAR JAWABAN
+1. Jawab pertanyaan inti secara langsung jika sumber yang relevan cukup.
+2. Gunakan bahasa yang sesuai dengan customer dan nada yang sopan.
+3. Jangan mengulang pesan handoff sebagai jawaban untuk pertanyaan informasi yang dapat dijawab.
+4. Jangan mengubah makna kebijakan sumber.
+5. Sertakan kutipan sumber jika tersedia pada sistem.
+6. Jika pertanyaan memiliki beberapa bagian, jawab bagian yang didukung dan jelaskan bagian yang belum dapat dipastikan.
+7. Hindari jawaban panjang untuk pertanyaan sederhana.
+8. Jika pesan customer adalah sapaan, balas sapaan dan tawarkan bantuan.
+
+KETIKA SUMBER TIDAK CUKUP
+- Jangan mengarang fakta, nominal, biaya, limit, SLA, nomor kontak, atau status transaksi.
+- Katakan secara singkat informasi apa yang belum dapat dipastikan.
+- Ajukan klarifikasi jika informasi tambahan dapat membantu pencarian.
+- Gunakan handoff jika pertanyaan memerlukan pemeriksaan manusia atau tetap tidak dapat dijawab dengan aman.
+- Jangan membuat case/ticket hanya karena retrieval kosong kecuali aturan bisnis mengharuskannya.
+
+KETIKA TOOL GAGAL
+- Jangan menyamakan kegagalan provider/tool dengan ketiadaan knowledge.
+- Jangan mengklaim tindakan berhasil jika tool gagal atau hasil belum terverifikasi.
+- Tampilkan penjelasan yang aman dan singkat kepada customer.
+- Simpan alasan kegagalan pada log teknis tanpa membocorkan secret atau isi sensitif.
+
+KONSISTENSI ANTAR-PESAN
+- Pesan yang sama harus mengikuti aturan routing yang sama jika konteks dan status bisnis tidak berubah.
+- Jangan memaksa handoff hanya karena intent yang sama muncul berulang.
+- Gunakan konteks percakapan untuk follow-up seperti "Mengapa?" atau "Bagaimana caranya?", tetapi prioritaskan pesan terbaru.
+- Handoff lama tidak boleh menggantikan jawaban baru secara otomatis jika customer mengajukan pertanyaan informasi yang dapat dijawab.
+- Permintaan tindakan yang memerlukan manusia tetap mengikuti kebijakan handoff meskipun diawali sapaan.
+
+STATUS DAN KLAIM
+Bedakan:
+- Permintaan diterima: request tercatat.
+- Handoff accepted: petugas menerima permintaan.
+- Sedang ditangani: proses penanganan berjalan sesuai status aplikasi.
+- Resolved pending confirmation: penanganan menunggu konfirmasi sesuai workflow.
+- Closed: hanya jika state machine dan aturan bisnis mengizinkan.
+
+PENTING
+Dokumen ini adalah panduan kualitas. Keputusan akses, izin tool, state machine, dan approval tetap ditentukan oleh backend serta kebijakan resmi, bukan oleh dokumen knowledge ini.
