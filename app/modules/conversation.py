@@ -69,7 +69,13 @@ def ingest(db: Session, channel: str, from_handle: str, text: str,
     # Existing conversation IDs are resolved inside the trusted tenant/owner boundary.
     if conversation_id:
         conv = db.query(ConversationRow).filter_by(conversation_id=conversation_id, tenant_id=tenant).first()
-        if not conv or (ctx.get("role") == "customer" and conv.customer_id != ctx.get("actor_id")):
+        is_guest = ctx.get("identity_type") == "guest"
+        if not conv:
+            raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+        if is_guest:
+            if conv.customer_id not in (None, "guest_customer"):
+                raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
+        elif ctx.get("role") == "customer" and conv.customer_id != ctx.get("actor_id"):
             raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
         if claimed_customer_id and claimed_customer_id != conv.customer_id:
             raise AppError("E_NOT_FOUND", "conversation not found", customer_message_id="CONV.NOT_FOUND")
