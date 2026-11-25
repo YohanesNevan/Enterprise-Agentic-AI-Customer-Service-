@@ -212,3 +212,38 @@ def test_guest_conversation_can_be_claimed_only_with_signed_token():
                     json={"text": "Halo lagi", "conversation_id": conv},
                     headers={**_idem(), "X-Guest-Session": token})
     assert replay.status_code == 404
+
+
+def test_guest_can_send_followup_messages_in_same_conversation():
+    first = _guest_post("Jam operasional layanan?")
+    assert first.status_code == 200, first.text
+    body1 = first.json()
+    conv = body1["conversation_id"]
+    token = body1["guest_session"]["session_token"]
+
+    second = c.post(
+        "/v1/chat/messages",
+        json={"text": "produk apa yg tersedia pada perusahaan ini", "conversation_id": conv},
+        headers={**_idem(), "X-Guest-Session": token},
+    )
+    assert second.status_code == 200, second.text
+    body2 = second.json()
+    assert body2["conversation_id"] == conv
+    assert body2["authenticated"] is False
+    token2 = body2["guest_session"]["session_token"]
+    assert token2
+
+    rm = c.get(
+        f"/v1/conversations/{conv}/read-model",
+        headers={"X-Guest-Session": token2},
+    )
+    assert rm.status_code == 200, rm.text
+    assert len(rm.json()["messages"]) >= 4
+
+    unauth = c.post(
+        "/v1/chat/messages",
+        json={"text": "Lanjutkan tanpa token", "conversation_id": conv},
+        headers=_idem(),
+    )
+    assert unauth.status_code == 401
+
