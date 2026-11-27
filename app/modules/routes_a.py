@@ -935,16 +935,64 @@ def register(app):
         finally:
             db.close()
 
-    # ---- CRM lookup/update + evidence link (tool milik B yang belum ada) ----
+    # ---- CRM lookup/update/list + evidence link (tool milik B yang belum ada) ----
+    @app.get("/v1/tickets")
+    async def ticket_list(request: Request, conversation_id: str | None = None,
+                          status: str | None = None, limit: int = 50,
+                          ctx=Depends(require_perm("ticket.read"))):
+        _ = request
+        db = SessionLocal()
+        try:
+            from ..core.ids import short_reference
+            q = db.query(BModels.TicketRow).filter_by(tenant_id=ctx["tenant_id"])
+            if ctx["role"] == "customer":
+                q = q.filter_by(customer_id=ctx["actor_id"])
+            if conversation_id:
+                q = q.filter_by(conversation_id=conversation_id)
+            if status:
+                q = q.filter_by(status=status)
+            items = q.order_by(BModels.TicketRow.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    "ticket_id": t.ticket_id,
+                    "customer_reference": short_reference("ticket", t.ticket_id),
+                    "customer_id": t.customer_id,
+                    "conversation_id": t.conversation_id,
+                    "case_id": t.case_id,
+                    "type": t.type,
+                    "sub_type": t.sub_type,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "description": t.description,
+                    "owner_queue": t.owner_queue,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                }
+                for t in items
+            ]
+        finally:
+            db.close()
+
     @app.get("/v1/tickets/{tid}")
     async def ticket_lookup(tid: str, request: Request, ctx=Depends(require_perm("ticket.read"))):
         _ = request
         db = SessionLocal()
         try:
+            from ..core.ids import short_reference
             t = db.query(BModels.TicketRow).filter_by(ticket_id=tid, tenant_id=ctx["tenant_id"]).first()
             if t and ctx["role"] == "customer" and t.customer_id != ctx["actor_id"]: t = None
             if not t: raise AppError("E_NOT_FOUND", "ticket not found", customer_message_id="TICKET.NOT_FOUND")
-            return {"ticket_id": t.ticket_id, "status": t.status, "type": t.type}
+            return {
+                "ticket_id": t.ticket_id,
+                "customer_reference": short_reference("ticket", t.ticket_id),
+                "customer_id": t.customer_id,
+                "conversation_id": t.conversation_id,
+                "case_id": t.case_id,
+                "status": t.status,
+                "type": t.type,
+                "priority": t.priority,
+                "description": t.description,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
         finally:
             db.close()
 
@@ -956,9 +1004,44 @@ def register(app):
             if not t: raise AppError("E_NOT_FOUND", "ticket not found", customer_message_id="TICKET.NOT_FOUND")
             if "status" in body: t.status = body["status"]
             db.commit()
-            audit_svc.emit("TNT-TEST", request.state.correlation_id, ctx["actor_type"], ctx["actor_id"],
+            audit_svc.emit(ctx["tenant_id"], request.state.correlation_id, ctx["actor_type"], ctx["actor_id"],
                            "ticket.status_changed", "ticket", tid, "ticket-svc")
             return {"ticket_id": tid, "status": t.status}
+        finally:
+            db.close()
+
+    @app.get("/v1/cases")
+    async def case_list(request: Request, conversation_id: str | None = None,
+                        status: str | None = None, limit: int = 50,
+                        ctx=Depends(require_perm("case.read"))):
+        _ = request
+        db = SessionLocal()
+        try:
+            q = db.query(BModels.CaseRow).filter_by(tenant_id=ctx["tenant_id"])
+            if ctx["role"] == "customer":
+                q = q.filter_by(customer_id=ctx["actor_id"])
+            if conversation_id:
+                q = q.filter_by(origin_conversation_id=conversation_id)
+            if status:
+                q = q.filter_by(status=status)
+            items = q.order_by(BModels.CaseRow.logged_at.desc()).limit(limit).all()
+            return [
+                {
+                    "case_id": c.case_id,
+                    "customer_reference": c.customer_reference,
+                    "customer_id": c.customer_id,
+                    "conversation_id": c.origin_conversation_id,
+                    "category": c.category,
+                    "sub_category": c.sub_category,
+                    "severity_proposed": c.severity_proposed,
+                    "severity_confirmed": c.severity_confirmed,
+                    "status": c.status,
+                    "customer_visible_status": c.customer_visible_status,
+                    "owner_queue": c.owner_queue,
+                    "logged_at": c.logged_at.isoformat() if c.logged_at else None,
+                }
+                for c in items
+            ]
         finally:
             db.close()
 
@@ -970,7 +1053,36 @@ def register(app):
             c = db.query(BModels.CaseRow).filter_by(case_id=cid, tenant_id=ctx["tenant_id"]).first()
             if c and ctx["role"] == "customer" and c.customer_id != ctx["actor_id"]: c = None
             if not c: raise AppError("E_NOT_FOUND", "case not found", customer_message_id="CASE.NOT_FOUND")
-            return {"case_id": c.case_id, "status": c.status, "customer_visible_status": c.customer_visible_status}
+            return {
+                "case_id": c.case_id,
+                "customer_reference": c.customer_reference,
+                "customer_id": c.customer_id,
+                "conversation_id": c.origin_conversation_id,
+                "category": c.category,
+                "sub_category": c.sub_category,
+                "status": c.status,
+                "customer_visible_status": c.customer_visible_status,
+                "logged_at": c.logged_at.isoformat() if c.logged_at else None,
+            }
+        finally:
+            db.close()
+
+    @app.patch("/v1/cases/{cid}")
+    async def case_update(cid: str, body: dict, request: Request, ctx=Depends(require_perm("case.update"))):
+        db = SessionLocal()
+        try:
+            c = db.query(BModels.CaseRow).filter_by(case_id=cid, tenant_id=ctx["tenant_id"]).first()
+            if not c: raise AppError("E_NOT_FOUND", "case not found", customer_message_id="CASE.NOT_FOUND")
+            if "status" in body:
+                c.status = body["status"]
+                from .cases import INTERNAL_TO_CUSTOMER
+                c.customer_visible_status = INTERNAL_TO_CUSTOMER.get(body["status"], c.customer_visible_status)
+            if "severity_confirmed" in body:
+                c.severity_confirmed = body["severity_confirmed"]
+            db.commit()
+            audit_svc.emit(ctx["tenant_id"], request.state.correlation_id, ctx["actor_type"], ctx["actor_id"],
+                           "case.status_changed", "case", cid, "case-svc")
+            return {"case_id": cid, "status": c.status, "customer_visible_status": c.customer_visible_status}
         finally:
             db.close()
 

@@ -41,18 +41,24 @@ Complete and verify the customer conversation journey; production identity remai
   3. Frontend Staff Workspace UI (`web-workspace/src/App.jsx`): Rendered the rich **Handoff Context Package Card** with 3 distinct operational zones (Profil & Status, Analisis & Kronologi Masalah AI, Riwayat Tools & Rekomendasi Tindakan Petugas) and enhanced Queue table with intent badges and completeness indicators.
   4. Verified Test Suites: Added `tests/test_workspace_read_model.py` (access control, handoff package schema, enriched queue items). Fixed test helper token lifetime alignment (900s for human tokens) in `tests/auth_helpers.py`. Full regression test suite passed 15/15 (100% pass) and Vite frontend built cleanly.
 
+- Completed Unit 09: Supervisor & Complaint Officer Operations (`context/specs/09-supervisor-complaint-officer.md`):
+  1. Escalation & SLA Monitoring (`app/modules/escalation.py`, `app/main.py`): Added `GET /v1/workspace/escalations`, `POST /v1/workspace/escalations/{eid}/acknowledge`, and `GET /v1/workspace/sla/records` (computing `BREACHED`, `AT_RISK`, and remaining minutes).
+  2. Ticket Assignment & Dispute Adjudication (`app/main.py`, `app/modules/routes_a.py`, `app/core/rbac.py`): Added `PATCH /v1/tickets/{tid}/assign`, `POST /v1/cases/{cid}/adjudicate` (marking matching SLA record `MET` and emitting audit events), `GET /v1/tickets`, `GET/PATCH /v1/cases`, enriched `GET /v1/tickets/{tid}` & `GET /v1/cases/{cid}`, and granted `ticket.*` permissions to `supervisor` and `complaint_officer`.
+  3. Frontend Integration (`web-workspace/src/pages/workspace/ComplaintOfficer.jsx`, `App.jsx`, `routes.js`, `workspace-access.js`): Registered `ComplaintOfficer` on `/complaints` for `complaint_officer` and `supervisor`, and added `/complaints` (`Complaint Adjudication`) to supervisor navigation.
+  4. Verified on `main`: `tests/test_supervisor_officer.py` (5/5 passed), `tests/test_agent_graph.py` (4/4 passed), `tests/test_customer_complaints.py` (2/2 passed), `tests/test_access_tiers.py` (8/8 passed), `tests/test_a_skeleton.py` (11/11 passed), `tests/test_workspace_read_model.py` (3/3 passed standalone on clean SQLite DB; shares `customer-test-user` fixture handle with `test_customer_complaints.py` when run in one DB), Vite production build (55 modules transformed), and `npm run test:workspace` (5/5 passed).
+
 ## Current status
 
 - Unit 03 completed and verified per `context/specs/03-role-navigation-shell.md`.
 - Unit 04 local customer login, API, UI integration and regression tests are implemented. Production identity and schema migration remain gated.
 - Unit 06 and Unit 07 customer complaints and tracking completed and verified.
 - Unit 08 Agent Workspace Read Model & Queue completed and verified.
+- Unit 09 Supervisor & Complaint Officer Operations completed and verified.
 
 ## Next tasks
 
-1. Unit 09: Staff Response & Conversation Wrap-up (CS Agent conversation handling, wrap-up classification, customer feedback collection).
-2. Unit 10: Multi-channel Ingestion Adapters (WhatsApp / Email / Webhook ingestion bridges).
-3. Unit 11: Case & Evidence Management Lifecycle (Adjudication, document verification, multi-department case escalation).
+1. Unit 10: Multi-channel Ingestion Adapters (WhatsApp / Email / Webhook ingestion bridges).
+2. Unit 11: Case & Evidence Management Lifecycle (Adjudication, document verification, multi-department case escalation).
 
 ## Open questions
 

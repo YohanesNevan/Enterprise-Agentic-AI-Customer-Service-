@@ -22,6 +22,7 @@ import Analytics from './pages/workspace/Analytics.jsx'
 import SLA from './pages/workspace/SLA.jsx'
 import Audit from './pages/workspace/Audit.jsx'
 import KnowledgeManager from './pages/workspace/KnowledgeManager.jsx'
+import ComplaintOfficer from './pages/workspace/ComplaintOfficer.jsx'
 
 const PAGE_COMPONENTS = {
   login: UniversalLogin,
@@ -40,6 +41,7 @@ const PAGE_COMPONENTS = {
   sla: SLA,
   audit: Audit,
   knowledge: KnowledgeManager,
+  complaints: ComplaintOfficer,
 }
 
 export default function App() {
