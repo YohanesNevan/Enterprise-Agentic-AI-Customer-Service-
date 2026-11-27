@@ -1,0 +1,21 @@
+JUDUL: Panduan Layanan Rekening, Transaksi, dan Kartu
+JENIS DOKUMEN: Knowledge Base Layanan Rekening & Kartu
+
+1. Cek Saldo dan Riwayat Transaksi (Tier 2 - Wajib Login)
+- Nasabah yang sudah masuk ke akun dapat menanyakan informasi saldo rekening terkini maupun riwayat/mutasi transaksi melalui chat.
+- Demi keamanan, nomor rekening hanya ditampilkan dalam bentuk tersamar (masked), misalnya berakhiran 4 digit terakhir.
+
+2. Permintaan Rekening Koran / Statement (Tier 2 - Wajib Login)
+- Nasabah dapat meminta pengiriman dokumen rekening koran (statement) melalui asisten AI.
+- Dokumen rekening koran dikirimkan ke alamat email yang terdaftar pada akun nasabah.
+
+3. Pemblokiran Kartu Sementara (Tier 3 - Wajib OTP & Persetujuan)
+- Jika kartu ATM/Debit hilang, dicuri, atau berisiko disalahgunakan, nasabah dapat mengajukan pemblokiran kartu sementara (`TEMP_BLOCK`).
+- Sebelum pemblokiran dijalankan, sistem mewajibkan:
+  a) Nasabah sudah login ke akun (AL1).
+  b) Verifikasi kode OTP ke kanal terdaftar (AL2).
+  c) Konfirmasi persetujuan nasabah untuk memproses pemblokiran sementara.
+
+4. Penggantian Kartu, Buka Blokir, dan Perubahan Limit/Profil
+- Tindakan pembukaan blokir kartu (`unblock_card`), penerbitan kartu baru (`issue_card`), perubahan limit transaksi, serta pembaruan data profil/kredensial tidak dijalankan otomatis oleh AI.
+- Permintaan tersebut akan dicatat oleh AI dan diteruskan kepada petugas berwenang untuk proses verifikasi lanjutan dan persetujuan.

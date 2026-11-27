@@ -1,0 +1,18 @@
+JUDUL: Keamanan Akun, Penanganan Indikasi Penipuan, dan Alih Tangan Petugas
+JENIS DOKUMEN: Knowledge Base Keamanan & Eskalasi Wajib
+
+1. Eskalasi Wajib ke Petugas (Mandatory Human Handoff)
+Asisten AI akan langsung mengalihkan percakapan ke antrean petugas manusia apabila terdeteksi kondisi berikut:
+- Dugaan penipuan, scam, phishing, atau transaksi di bawah paksaan (`CMP_FRAUD_SUSPICION`).
+- Keluhan terkait sikap atau pelayanan petugas (`CMP_STAFF_CONDUCT`).
+- Permintaan nasabah yang secara eksplisit meminta berbicara langsung dengan petugas manusia.
+- Pertanyaan yang belum memiliki sumber resmi yang cukup di dalam knowledge base (knowledge gap) atau tindakan berisiko tinggi (Tier 4).
+
+2. Status Antrean Petugas
+- Ketika alih tangan (handoff) dipicu, sistem membuat tiket antrean resmi ke petugas (`QUEUED`).
+- Asisten AI tidak akan mengklaim bahwa petugas sudah menerima percakapan sebelum petugas benar-benar mengambil alih antrean (`ACCEPTED`).
+
+3. Prinsip Keamanan dan Privasi Nasabah
+- NPB tidak pernah meminta nasabah mengirimkan PIN, kode OTP, kata sandi (password), CVV, atau nomor kartu lengkap melalui percakapan chat biasa.
+- Verifikasi OTP hanya dilakukan melalui mekanisme tantangan autentikasi resmi sistem, bukan dengan mengetikkan rahasia akun secara sembarangan.
+- Jika nasabah merasa menjadi korban penipuan atau phishing, segera hentikan komunikasi dengan pihak mencurigakan dan laporkan melalui fitur eskalasi petugas untuk penanganan prioritas.

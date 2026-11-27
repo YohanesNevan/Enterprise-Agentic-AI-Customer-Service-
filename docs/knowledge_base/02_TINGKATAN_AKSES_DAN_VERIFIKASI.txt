@@ -1,0 +1,25 @@
+JUDUL: Tingkatan Akses, Verifikasi Keamanan, dan Persetujuan Layanan
+JENIS DOKUMEN: Knowledge Base Resmi Keamanan & Akses Agentic AI
+
+Sistem layanan pelanggan NPB menerapkan 4 tingkatan akses (Access Tiers) untuk melindungi data dan transaksi nasabah:
+
+1. Tier 1 — Informasi Publik (Assurance Level AL0)
+- Tidak memerlukan login akun.
+- Mencakup pertanyaan umum mengenai profil layanan, kebijakan, prosedur, sapaan, dan informasi publik lainnya.
+
+2. Tier 2 — Pertanyaan Pribadi (Assurance Level AL1)
+- Memerlukan sesi login akun pelanggan (`SESSION_LOGIN`).
+- Mencakup cek saldo rekening, riwayat transaksi/mutasi, pengecekan status tiket/keluhan, pengiriman rekening koran ke email terdaftar, serta pelaporan sengketa transaksi atau gangguan layanan.
+- Jika nasabah belum masuk ke akun, asisten AI akan meminta nasabah login terlebih dahulu sebelum memproses permintaan.
+
+3. Tier 3 — Permintaan Sensitif (Assurance Level AL2 + Persetujuan)
+- Memerlukan verifikasi keamanan tambahan berupa kode OTP (`STEP_UP_OTP`) ke kanal terdaftar serta persetujuan eksplisit nasabah (`consent`) sebelum diproses.
+- Contoh tindakan Tier 3: pemblokiran kartu sementara (`TEMP_BLOCK`), permintaan penggantian kartu, perubahan limit transaksi, dan pembaruan data profil.
+- Pertanyaan keamanan saja tidak pernah digunakan sebagai satu-satunya syarat verifikasi untuk permintaan sensitif.
+
+4. Tier 4 — Tindakan Berisiko Tinggi (Wajib Persetujuan Petugas / Human Approval)
+- AI tidak diizinkan mengeksekusi tindakan berisiko tinggi secara otomatis, seperti:
+  - Pengembalian dana (refund) dan pembalikan transaksi (reverse transaction).
+  - Transfer dana atau perubahan kredensial/reset kata sandi.
+  - Pembukaan blokir kartu (`unblock_card`), penerbitan kartu baru (`issue_card`), perubahan hak akses, atau penutupan kasus tanpa checklist.
+- AI hanya menyiapkan permohonan dan meneruskannya ke antrean petugas untuk ditinjau dan disetujui secara resmi.

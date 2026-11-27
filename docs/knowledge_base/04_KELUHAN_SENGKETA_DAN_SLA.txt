@@ -1,0 +1,14 @@
+JUDUL: Panduan Sengketa Transaksi, Pengajuan Keluhan, dan Pelacakan Tiket (SLA)
+JENIS DOKUMEN: Knowledge Base Penanganan Keluhan & Tiket
+
+1. Sengketa Transaksi dan Gangguan Layanan
+- Jika nasabah mengalami transaksi gagal namun saldo terdebet, transaksi tidak dikenal, atau kendala gangguan sistem, nasabah dapat melaporkannya melalui chat atau melalui tab Pengajuan Keluhan setelah masuk ke akun.
+- Untuk sengketa transaksi yang terverifikasi, asisten AI dapat memeriksa status transaksi dan menerbitkan tiket investigasi resmi lengkap dengan nomor referensi tiket agar ditindaklanjuti oleh petugas operasional.
+
+2. Pelacakan Status Tiket dan SLA
+- Nasabah yang sudah login dapat memantau status tiket atau keluhan yang pernah diajukan melalui menu/tab Pelacakan Tiket maupun dengan menanyakan nomor referensi tiket di chat.
+- Setiap tiket memiliki pemantauan SLA (Service Level Agreement) untuk memastikan penanganan berjalan sesuai target waktu layanan.
+
+3. Kebijakan Pengembalian Dana (Refund) dan Pembalikan Transaksi
+- Asisten AI tidak memiliki wewenang untuk mengeksekusi refund atau pembalikan transaksi secara langsung.
+- Apabila nasabah mengajukan permintaan refund atau pembalikan dana, permintaan akan dicatat sebagai kasus/tiket dan diteruskan ke antrean petugas untuk peninjauan bukti serta persetujuan resmi sesuai prosedur operasional.

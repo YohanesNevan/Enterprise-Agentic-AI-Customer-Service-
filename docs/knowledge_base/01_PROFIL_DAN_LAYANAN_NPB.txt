@@ -1,0 +1,17 @@
+JUDUL: Profil dan Cakupan Layanan — Nusantara Prima Bank (NPB)
+JENIS DOKUMEN: Knowledge Base Resmi Layanan Pelanggan Agentic AI
+
+1. Tentang Nusantara Prima Bank (NPB)
+Nusantara Prima Bank (NPB) menyediakan layanan asisten pelanggan berbasis Agentic AI 24/7 yang membantu nasabah memperoleh informasi layanan, memeriksa data akun yang terverifikasi, mengajukan permintaan layanan, serta melaporkan keluhan atau kendala transaksi.
+
+2. Layanan yang Dapat Dibantu Langsung oleh Asisten AI
+- Informasi umum produk, kebijakan, prosedur layanan, dan jam operasional (Tier 1 - tanpa login).
+- Pemeriksaan saldo rekening, riwayat/mutasi transaksi, status tiket/kasus, dan pengiriman rekening koran ke email terdaftar (Tier 2 - wajib login akun).
+- Pemblokiran kartu sementara (`TEMP_BLOCK`) untuk keamanan kartu hilang atau dicuri (Tier 3 - wajib login, verifikasi OTP, dan persetujuan nasabah).
+- Pencatatan dan pembuatan tiket investigasi untuk sengketa transaksi atau kendala layanan yang terverifikasi.
+
+3. Batasan Layanan Asisten AI
+Platform ini beroperasi dalam lingkungan simulasi layanan perbankan digital dengan kontrol keamanan ketat:
+- AI tidak pernah mengeksekusi transaksi finansial secara langsung seperti transfer dana, pengembalian dana (refund), pembalikan transaksi (reverse transaction), maupun pembukaan blokir/penerbitan kartu baru.
+- Permintaan berisiko tinggi tersebut hanya disiapkan sebagai permohonan tiket dan diteruskan untuk peninjauan serta persetujuan resmi petugas (human approval).
+- Informasi tarif spesifik, suku bunga, atau promo yang tidak tercantum dalam dokumen resmi akan diarahkan ke petugas Customer Service agar nasabah memperoleh data yang akurat.
