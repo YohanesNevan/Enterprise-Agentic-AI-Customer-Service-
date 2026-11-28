@@ -4,6 +4,61 @@ import { customerConversationState, navigate } from '../../shared/navigation.js'
 
 const GUEST_SESSION_KEY = 'eaics_guest_chat_session'
 
+function VerificationModal({ title, subtitle, onClose, children }) {
+  const dialogRef = useRef(null)
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const target = dialogRef.current?.querySelector(
+      '.chat-modal-body input, .chat-modal-body textarea, .chat-modal-body select, .chat-modal-body button',
+    )
+    target?.focus?.()
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="chat-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="chat-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chat-verification-title"
+        aria-describedby={subtitle ? 'chat-verification-subtitle' : undefined}
+        ref={dialogRef}
+      >
+        <div className="chat-modal-head">
+          <div>
+            <h3 id="chat-verification-title">{title}</h3>
+            {subtitle && <p id="chat-verification-subtitle">{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            className="chat-modal-close"
+            aria-label="Tutup jendela verifikasi"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+        <div className="chat-modal-body">{children}</div>
+      </div>
+    </div>
+  )
+}
+
 const TIER_META = {
   1: {
     code: 'PUBLIC_INFORMATION',
@@ -461,6 +516,7 @@ export default function CustomerChat() {
   const [sessionInfo, setSessionInfo] = useState(null)
   const [tier, setTier] = useState(null)
   const [stepUp, setStepUp] = useState(null)
+  const [verifyModalOpen, setVerifyModalOpen] = useState(true)
   const [consentChecked, setConsentChecked] = useState(false)
   const [consentBusy, setConsentBusy] = useState(false)
   const [pendingText, setPendingText] = useState(null)
@@ -740,7 +796,14 @@ export default function CustomerChat() {
 
   useEffect(() => {
     setConsentChecked(false)
+    setVerifyModalOpen(true)
   }, [tier?.consent?.purpose])
+
+  useEffect(() => {
+    if (tier?.verification) setVerifyModalOpen(true)
+  }, [tier?.verification])
+
+  const closeVerificationModal = useCallback(() => setVerifyModalOpen(false), [])
 
   useEffect(() => {
     if (!conversationId) return undefined
@@ -1017,6 +1080,7 @@ export default function CustomerChat() {
   const tierMeta = TIER_META[effectiveTier]
   const verification = tier?.verification || null
   const consent = tier?.consent || null
+  const stepUpRequired = verification?.method === 'STEP_UP_OTP' || !!stepUp
   const humanApproval = !!tier?.humanApproval
   const guestExpiry = guestSession?.conversationId === conversationId ? guestSession.expiresAt : null
   const assuranceChip = authSession
@@ -1155,106 +1219,136 @@ export default function CustomerChat() {
           </div>
         )}
 
-        {(verification?.method === 'STEP_UP_OTP' || stepUp) && (
-          <section className="chat-stepup-card" aria-labelledby="chat-stepup-title">
-            <h4 id="chat-stepup-title">Verifikasi tambahan (Tier 3)</h4>
-            <p>
-              Tindakan sensitif memerlukan OTP ke kanal terdaftar Anda. Pertanyaan keamanan saja
-              tidak cukup untuk tindakan ini.
-            </p>
-            {!stepUp?.challengeId ? (
-              <button
-                type="button"
-                className="btn sm primary"
-                onClick={startStepUp}
-                disabled={!!stepUp?.busy}
-              >
-                {stepUp?.busy ? 'Mengirim kode...' : 'Kirim Kode OTP'}
-              </button>
-            ) : (
-              <form onSubmit={verifyStepUp} className="chat-stepup-form">
-                {stepUp.simulatedCode && (
-                  <p className="chat-otp-simulator">
-                    Simulator OTP (mode pengembangan): <code>{stepUp.simulatedCode}</code>
-                  </p>
-                )}
-                <label htmlFor="chat-otp-code">Kode OTP</label>
-                <input
-                  id="chat-otp-code"
-                  className="chat-otp-input"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={stepUp.code}
-                  onChange={(event) => setStepUp((current) => ({
-                    ...current,
-                    code: event.target.value.replace(/\D/g, ''),
-                  }))}
-                  disabled={!!stepUp.busy}
-                />
-                {stepUp.attemptsRemaining != null && (
-                  <p className="chat-muted">Sisa percobaan: {stepUp.attemptsRemaining}</p>
-                )}
-                <div className="chat-stepup-actions">
-                  <button
-                    type="submit"
-                    className="btn sm primary"
-                    disabled={!!stepUp.busy || stepUp.code.length < 4}
-                  >
-                    {stepUp.busy ? 'Memverifikasi...' : 'Verifikasi'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn sm"
-                    onClick={startStepUp}
-                    disabled={!!stepUp.busy}
-                  >
-                    Kirim Ulang
-                  </button>
-                </div>
-              </form>
-            )}
-            {stepUp?.error && (
-              <p className="chat-stepup-error" role="alert">{stepUp.error}</p>
-            )}
-            <p className="chat-stepup-foot">Kode OTP tidak pernah disimpan di transkrip percakapan.</p>
-          </section>
-        )}
+        {(stepUpRequired || consent) && (
+          verifyModalOpen ? (
+            <VerificationModal
+              title={stepUpRequired ? 'Verifikasi tambahan (Tier 3)' : (consent?.title || 'Persetujuan diperlukan')}
+              subtitle={stepUpRequired
+                ? 'Tindakan sensitif memerlukan OTP ke kanal terdaftar Anda. Pertanyaan keamanan saja tidak cukup untuk tindakan ini.'
+                : 'Tinjau ringkasan berikut sebelum permintaan diproses.'}
+              onClose={closeVerificationModal}
+            >
+              {stepUpRequired && (
+                <section className="chat-stepup-card" aria-labelledby="chat-stepup-title">
+                  <h4 id="chat-stepup-title">
+                    {consent ? 'Langkah 1 · Verifikasi OTP' : 'Kode OTP'}
+                  </h4>
+                  {!stepUp?.challengeId ? (
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={startStepUp}
+                      disabled={!!stepUp?.busy}
+                    >
+                      {stepUp?.busy ? 'Mengirim kode...' : 'Kirim Kode OTP'}
+                    </button>
+                  ) : (
+                    <form onSubmit={verifyStepUp} className="chat-stepup-form">
+                      {stepUp.simulatedCode && (
+                        <p className="chat-otp-simulator">
+                          Simulator OTP (mode pengembangan): <code>{stepUp.simulatedCode}</code>
+                        </p>
+                      )}
+                      <label htmlFor="chat-otp-code">Kode OTP</label>
+                      <input
+                        id="chat-otp-code"
+                        className="chat-otp-input"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={stepUp.code}
+                        onChange={(event) => setStepUp((current) => ({
+                          ...current,
+                          code: event.target.value.replace(/\D/g, ''),
+                        }))}
+                        disabled={!!stepUp.busy}
+                      />
+                      {stepUp.attemptsRemaining != null && (
+                        <p className="chat-muted">Sisa percobaan: {stepUp.attemptsRemaining}</p>
+                      )}
+                      <div className="chat-stepup-actions">
+                        <button
+                          type="submit"
+                          className="btn primary"
+                          disabled={!!stepUp.busy || stepUp.code.length < 4}
+                        >
+                          {stepUp.busy ? 'Memverifikasi...' : 'Verifikasi'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={startStepUp}
+                          disabled={!!stepUp.busy}
+                        >
+                          Kirim Ulang
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                  {stepUp?.error && (
+                    <p className="chat-stepup-error" role="alert">{stepUp.error}</p>
+                  )}
+                  <p className="chat-stepup-foot">Kode OTP tidak pernah disimpan di transkrip percakapan.</p>
+                </section>
+              )}
 
-        {consent && (
-          <section className="chat-consent-card" aria-labelledby="chat-consent-title">
-            <h4 id="chat-consent-title">{consent.title || 'Persetujuan diperlukan'}</h4>
-            <p>
-              {consent.summary
-                || 'Data yang diproses terbatas pada kebutuhan permintaan ini.'}
-            </p>
-            <label className="chat-consent-check">
-              <input
-                type="checkbox"
-                checked={consentChecked}
-                onChange={(event) => setConsentChecked(event.target.checked)}
-              />
-              <span>Saya memahami dan menyetujui pemrosesan untuk permintaan ini.</span>
-            </label>
-            <div className="chat-consent-actions">
+              {consent && (
+                <section className="chat-consent-card" aria-labelledby="chat-consent-title">
+                  <h4 id="chat-consent-title">
+                    {stepUpRequired ? 'Langkah 2 · Persetujuan' : 'Rincian persetujuan'}
+                  </h4>
+                  <p>
+                    {consent.summary
+                      || 'Data yang diproses terbatas pada kebutuhan permintaan ini.'}
+                  </p>
+                  <label className="chat-consent-check">
+                    <input
+                      type="checkbox"
+                      checked={consentChecked}
+                      onChange={(event) => setConsentChecked(event.target.checked)}
+                    />
+                    <span>Saya memahami dan menyetujui pemrosesan untuk permintaan ini.</span>
+                  </label>
+                  <div className="chat-consent-actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={!consentChecked || consentBusy}
+                      onClick={() => decideConsent(true)}
+                    >
+                      Berikan Persetujuan
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={consentBusy}
+                      onClick={() => decideConsent(false)}
+                    >
+                      Tolak
+                    </button>
+                  </div>
+                </section>
+              )}
+            </VerificationModal>
+          ) : (
+            <div className="chat-verification-bar" role="status">
+              <div className="chat-verification-bar-text">
+                <strong>{stepUpRequired ? 'Verifikasi OTP diperlukan' : 'Persetujuan diperlukan'}</strong>
+                <span>
+                  {stepUpRequired
+                    ? 'Selesaikan verifikasi untuk melanjutkan permintaan sensitif.'
+                    : 'Tinjau dan berikan persetujuan untuk melanjutkan.'}
+                </span>
+              </div>
               <button
                 type="button"
                 className="btn sm primary"
-                disabled={!consentChecked || consentBusy}
-                onClick={() => decideConsent(true)}
+                onClick={() => setVerifyModalOpen(true)}
               >
-                Berikan Persetujuan
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                disabled={consentBusy}
-                onClick={() => decideConsent(false)}
-              >
-                Tolak
+                Buka Verifikasi
               </button>
             </div>
-          </section>
+          )
         )}
 
         {pendingText && !verification && !consent && (
