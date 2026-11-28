@@ -407,3 +407,14 @@ This update supersedes the earlier “Unit 04 specification prepared; implementa
   - `python -m pytest tests/test_rag_chat.py tests/test_security_auth.py -q` — all pass except the pre-existing `test_relevant_sources_with_unavailable_llm_return_error_not_handoff` case, which also fails at `HEAD`.
   - `node node_modules/vite/bin/vite.js build` — production build passed (54 modules).
   - Full suite: 176 passed, 1 skipped, 6 failed; all 6 failures were reproduced in a clean `HEAD` worktree (Gemini prompt, PDF/retry/search knowledge-document cases, unavailable-LLM RAG case).
+
+## Customer Chat Verification Pop-up (2026-11-28)
+
+- **Requirement:** move the Tier 3 verification flow (OTP entry, resend, consent) from an inline card below the transcript into a centered pop-up so it is easier to see and use.
+- **Implemented (`web-workspace/src/pages/customer/CustomerChat.jsx`, `web-workspace/src/styles/chat.css`):**
+  1. `VerificationModal` dialog with `role="dialog"`, `aria-modal`, labelled title/subtitle, close button, Escape-key and backdrop dismissal, body-scroll lock, and focus on the first field.
+  2. OTP and consent sections combined in one dialog; when both are required they are shown as "Langkah 1 · Verifikasi OTP" and "Langkah 2 · Persetujuan".
+  3. Closing the dialog leaves a compact amber bar with a "Buka Verifikasi" button, so the pending request can still be completed; the dialog reopens automatically when a new verification/consent requirement arrives.
+  4. Reduced-motion support for the overlay/dialog animation.
+- **Preserved:** all existing OTP challenge/verify, resend, consent grant/deny, simulator-code, attempt-count, and error handling logic; no backend change.
+- **Verification:** `node node_modules/vite/bin/vite.js build` passed (55 modules); `tests/test_agent_graph.py` + `tests/test_customer_complaints.py` — 6 passed; frontend workspace tests — 5 passed; `dist/index.html` restored to `HEAD`.
